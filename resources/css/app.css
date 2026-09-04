@@ -1,0 +1,49 @@
+@import 'tailwindcss';
+
+/* 1. Cargar el plugin de daisyUI (v5, sintaxis CSS para Tailwind v4) */
+@plugin "daisyui" {
+    themes: emapa --default;
+}
+
+/* 2. Definir tu tema custom "emapa" directamente en CSS */
+@plugin "daisyui/theme" {
+    name: "emapa";
+    default: true;
+
+    --color-primary: #00c9a7;
+    --color-primary-content: #061219;
+
+    --color-secondary: #19354d;
+    --color-secondary-content: #8ea9bf;
+
+    --color-accent: #00e5c0;
+    --color-accent-content: #061219;
+
+    --color-neutral: #122130;
+    --color-neutral-content: #8ea9bf;
+
+    --color-base-100: #0d1f30;
+    --color-base-200: #091520;
+    --color-base-300: #152a3e;
+    --color-base-content: #d0dde8;
+
+    --color-info: #38bdf8;
+    --color-info-content: #061219;
+
+    --color-success: #00c9a7;
+    --color-success-content: #061219;
+
+    --color-warning: #f59e0b;
+    --color-warning-content: #061219;
+
+    --color-error: #f87171;
+    --color-error-content: #ffffff;
+}
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+
+@theme {
+    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+        'Segoe UI Symbol', 'Noto Color Emoji';
+}
