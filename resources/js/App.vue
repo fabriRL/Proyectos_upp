@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router'
 import AppSidebar from '@/Components/AppSidebar.vue'
 import AppTopbar from '@/Components/AppTopbar.vue'
 import ToastNotification from '@/Components/ToastNotification.vue'
+import ConfirmDialog from '@/Components/ConfirmDialog.vue'
 
 const route = useRoute()
 const collapsed = ref(false)
@@ -23,4 +24,5 @@ const showLayout = computed(() => !route.meta.public)
   <router-view v-else />
 
   <ToastNotification />
+  <ConfirmDialog />
 </template>

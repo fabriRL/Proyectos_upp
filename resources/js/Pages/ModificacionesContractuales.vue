@@ -2,10 +2,15 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import axios from '@/lib/axios'
+import { useToast } from '@/composables/useToast.js'
+import { useConfirm } from '@/composables/useConfirm.js'
 import NuevaModificacion from './NuevaModificacion.vue'
+import EditarModificacion from './EditarModificacion.vue'
 
 const route = useRoute()
 const codigoProyecto = route.params.codigo
+const { showToast } = useToast()
+const { confirmar } = useConfirm()
 
 const contratos = ref([])
 const idContratoSeleccionado = ref(null)
@@ -14,16 +19,18 @@ const cargandoContratos = ref(true)
 const cargandoModificaciones = ref(false)
 const error = ref(null)
 const mostrarModal = ref(false)
+const modificacionEditando = ref(null)
 
 const contratoSeleccionado = computed(() =>
   contratos.value.find(c => c.id_contrato === idContratoSeleccionado.value) ?? null
 )
 
-// La fecha vigente del contrato vive directo en el propio contrato
-// (fecha_conclusion_prevista) — el backend la actualiza en cada
-// modificación, así que no hace falta recorrer el historial.
 const fechaConclusionVigente = computed(() =>
   contratoSeleccionado.value?.fecha_conclusion_prevista ?? null
+)
+
+const numeroMasReciente = computed(() =>
+  modificaciones.value.length ? Math.max(...modificaciones.value.map(m => m.numero)) : null
 )
 
 const meses = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic']
@@ -40,8 +47,6 @@ function fmtBs(valor) {
   return new Intl.NumberFormat('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(valor))
 }
 
-// Plazo modificado con signo y color: ampliación (positivo) en ámbar,
-// reducción (negativo) en verde, sin cambio en gris.
 function fmtPlazo(dias) {
   if (dias === null || dias === undefined) return { texto: '—', color: '#8ea9bf' }
   if (dias === 0) return { texto: '0 días', color: '#8ea9bf' }
@@ -86,14 +91,25 @@ const cargarModificaciones = async () => {
 }
 
 const eliminarModificacion = async (id) => {
-  if (!confirm('¿Eliminar esta modificación contractual? También se borrará el PDF adjunto.')) return
+  const ok = await confirmar({
+    title: 'Eliminar modificación',
+    message: '¿Eliminar esta modificación contractual? También se borrará el PDF adjunto. Esta acción no se puede deshacer.',
+    confirmText: 'Sí, eliminar',
+  })
+  if (!ok) return
+
   try {
     await axios.delete(`/api/modificaciones/${id}`)
     await cargarModificaciones()
+    showToast('Modificación eliminada correctamente.', 'success')
   } catch (e) {
     console.error(e)
-    alert('No se pudo eliminar la modificación.')
+    showToast('No se pudo eliminar la modificación.', 'error')
   }
+}
+
+function abrirEditar(m) {
+  modificacionEditando.value = m
 }
 
 function badgeColor(estado) {
@@ -103,9 +119,6 @@ function badgeColor(estado) {
 }
 
 async function alGuardarModificacion() {
-  // Una modificación edita la fecha del contrato, así que hay que
-  // refrescar los contratos (para la "fecha actual" del próximo modal)
-  // y las modificaciones (para la tabla).
   await cargarContratos()
   await cargarModificaciones()
 }
@@ -169,6 +182,7 @@ onMounted(cargarContratos)
             <table class="mod-table">
               <thead>
                 <tr>
+                  <th class="col-acciones-th">Acciones</th>
                   <th>N°</th>
                   <th>Tipo</th>
                   <th>N° Documento</th>
@@ -182,11 +196,18 @@ onMounted(cargarContratos)
                   <th>Fecha Firma</th>
                   <th>Estado</th>
                   <th>PDF</th>
-                  <th></th>
                 </tr>
               </thead>
               <tbody>
                 <tr v-for="m in modificaciones" :key="m.id_modificacion">
+                  <td class="col-acciones">
+                    <button class="btn-accion btn-editar" title="Editar modificación" @click="abrirEditar(m)">
+                      <i class="ti ti-pencil"></i>
+                    </button>
+                    <button class="btn-accion btn-eliminar" title="Eliminar" @click="eliminarModificacion(m.id_modificacion)">
+                      <i class="ti ti-trash"></i>
+                    </button>
+                  </td>
                   <td class="col-numero">{{ m.numero }}</td>
                   <td class="text-left col-tipo">{{ m.tipo_modificacion }}</td>
                   <td>{{ m.numero_documento_modificatorio || '—' }}</td>
@@ -215,9 +236,6 @@ onMounted(cargarContratos)
                     </a>
                     <span v-else style="color:#4d6478;">—</span>
                   </td>
-                  <td>
-                    <button class="btn-eliminar" @click="eliminarModificacion(m.id_modificacion)" title="Eliminar">✕</button>
-                  </td>
                 </tr>
               </tbody>
             </table>
@@ -233,22 +251,27 @@ onMounted(cargarContratos)
       @close="mostrarModal = false"
       @created="alGuardarModificacion"
     />
+
+    <EditarModificacion
+      v-if="modificacionEditando"
+      :key="modificacionEditando.id_modificacion"
+      :modificacion="modificacionEditando"
+      :es-ultima="modificacionEditando.numero === numeroMasReciente"
+      :fecha-actual="fechaConclusionVigente"
+      @close="modificacionEditando = null"
+      @updated="alGuardarModificacion"
+    />
   </div>
 </template>
 
 <style scoped>
 .mod-table {
   width: 100%;
-  min-width: 1850px;
+  min-width: 1900px;
   border-collapse: collapse;
   font-size: .82rem;
 }
-
-.mod-table thead tr {
-  background: #0a1826;
-  border-bottom: 1px solid #1e3a52;
-}
-
+.mod-table thead tr { background: #0a1826; border-bottom: 1px solid #1e3a52; }
 .mod-table th {
   white-space: nowrap;
   text-align: center;
@@ -259,20 +282,10 @@ onMounted(cargarContratos)
   text-transform: uppercase;
   letter-spacing: .04em;
 }
-
-.mod-table tbody tr {
-  border-bottom: 1px solid #152a3e;
-  transition: background .15s;
-}
-
-.mod-table tbody tr:hover {
-  background: rgba(0, 201, 167, .045);
-}
-
-.mod-table tbody tr:last-child {
-  border-bottom: 0;
-}
-
+.col-acciones-th { position: sticky; left: 0; z-index: 2; background: #0a1826; }
+.mod-table tbody tr { border-bottom: 1px solid #152a3e; transition: background .15s; }
+.mod-table tbody tr:hover { background: rgba(0, 201, 167, .045); }
+.mod-table tbody tr:last-child { border-bottom: 0; }
 .mod-table td {
   padding: 14px 12px;
   text-align: center;
@@ -280,35 +293,37 @@ onMounted(cargarContratos)
   white-space: nowrap;
   font-size: .85rem;
 }
-
-.mod-table td.text-left {
-  text-align: left;
+.mod-table td.text-left { text-align: left; }
+.col-acciones {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: #0d1f30;
+  display: flex;
+  gap: 6px;
+  justify-content: center;
 }
-
-.col-numero {
-  font-weight: 800;
-  color: #00c9a7;
-  font-size: .9rem;
+.mod-table tbody tr:hover .col-acciones { background: #0f2536; }
+.btn-accion {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  font-size: 13px;
+  transition: .15s;
 }
-
-.col-tipo {
-  color: #e4f0f7;
-  font-weight: 600;
-  min-width: 160px;
-}
-
-.col-fecha-destacada {
-  color: #f2fbff;
-  font-weight: 700;
-  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
-}
-
-.col-plazo {
-  font-weight: 800;
-  font-size: .92rem;
-  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
-}
-
+.btn-editar { background: rgba(77, 179, 240, .10); border-color: rgba(77, 179, 240, .22); color: #55b8ef; }
+.btn-editar:hover { background: rgba(77, 179, 240, .2); border-color: rgba(77, 179, 240, .35); }
+.btn-eliminar { background: rgba(248, 113, 113, .08); border-color: rgba(248, 113, 113, .18); color: #f87171; }
+.btn-eliminar:hover { background: rgba(248, 113, 113, .16); border-color: rgba(248, 113, 113, .3); }
+.col-numero { font-weight: 800; color: #00c9a7; font-size: .9rem; }
+.col-tipo { color: #e4f0f7; font-weight: 600; min-width: 160px; }
+.col-fecha-destacada { color: #f2fbff; font-weight: 700; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
+.col-plazo { font-weight: 800; font-size: .92rem; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
 .money {
   text-align: right !important;
   font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
@@ -316,42 +331,7 @@ onMounted(cargarContratos)
   font-weight: 700;
   font-size: .88rem;
 }
-
-.badge {
-  display: inline-block;
-  padding: 4px 10px;
-  border-radius: 6px;
-  border: 1px solid;
-  font-size: .74rem;
-  font-weight: 700;
-}
-
-.pdf-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  color: #00c9a7;
-  font-weight: 700;
-  text-decoration: none;
-  font-size: .82rem;
-}
-
-.pdf-link:hover {
-  text-decoration: underline;
-}
-
-.btn-eliminar {
-  color: #f87171;
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-size: 1rem;
-  padding: 4px 8px;
-  border-radius: 6px;
-  transition: background .15s;
-}
-
-.btn-eliminar:hover {
-  background: rgba(248, 113, 113, .1);
-}
+.badge { display: inline-block; padding: 4px 10px; border-radius: 6px; border: 1px solid; font-size: .74rem; font-weight: 700; }
+.pdf-link { display: inline-flex; align-items: center; gap: 4px; color: #00c9a7; font-weight: 700; text-decoration: none; font-size: .82rem; }
+.pdf-link:hover { text-decoration: underline; }
 </style>

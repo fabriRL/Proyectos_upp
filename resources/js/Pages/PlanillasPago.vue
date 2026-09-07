@@ -3,11 +3,16 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import axios from 'axios'
 import { useUtils } from '@/composables/useUtils.js'
+import { useToast } from '@/composables/useToast.js'
+import { useConfirm } from '@/composables/useConfirm.js'
 import NuevaPlanilla from './NuevaPlanilla.vue'
+import EditarPlanilla from './EditarPlanilla.vue'
 
 const route = useRoute()
 const codigoProyecto = route.params.codigo
 const { fmtBs } = useUtils()
+const { showToast } = useToast()
+const { confirmar } = useConfirm()
 
 const contratos = ref([])
 const idContratoSeleccionado = ref(null)
@@ -16,6 +21,7 @@ const cargandoContratos = ref(true)
 const cargandoPlanillas = ref(false)
 const error = ref(null)
 const mostrarModal = ref(false)
+const planillaEditando = ref(null)
 
 const meses = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic']
 function fmtFecha(fecha) {
@@ -30,15 +36,22 @@ const contratoSeleccionado = computed(() =>
   contratos.value.find(c => c.id_contrato === idContratoSeleccionado.value) ?? null
 )
 
-// Demora promedio de PAGO real (fecha_desembolso - fecha_aprobacion_fiscal),
-// no confundir con "días de atraso" (que es el atraso de ejecución de obra,
-// usado para calcular la multa). Solo cuenta planillas ya desembolsadas.
 const demoraPromedio = computed(() => {
   const conDemora = planillas.value.filter(p => p.dias_demora !== null && p.dias_demora !== undefined)
   if (!conDemora.length) return null
   const total = conDemora.reduce((sum, p) => sum + p.dias_demora, 0)
   return Math.round(total / conDemora.length)
 })
+
+const totalCertificado = computed(() => planillas.value.reduce((s, p) => s + p.monto_certificado, 0))
+const totalRetencion = computed(() => planillas.value.reduce((s, p) => s + p.retencion_gcc, 0))
+const totalMultas = computed(() => planillas.value.reduce((s, p) => s + p.multa, 0))
+const totalAmortizacion = computed(() => planillas.value.reduce((s, p) => s + p.amortizacion, 0))
+const totalLiquido = computed(() => planillas.value.reduce((s, p) => s + p.liquido_pagable, 0))
+const totalPagadoSigep = computed(() => planillas.value.reduce((s, p) => s + p.importe_pagado_sigep, 0))
+const totalDiferenciaLpF = computed(() => planillas.value.reduce((s, p) => s + p.diferencia_lp_f, 0))
+const totalMontoC31 = computed(() => planillas.value.reduce((s, p) => s + p.monto_c31, 0))
+const totalDiferenciaSigepC31 = computed(() => planillas.value.reduce((s, p) => s + p.diferencia_sigep_c31, 0))
 
 const cargarContratos = async () => {
   cargandoContratos.value = true
@@ -98,14 +111,25 @@ const cargarPlanillas = async () => {
 }
 
 const eliminarPlanilla = async (idPlanilla) => {
-  if (!confirm('¿Eliminar esta planilla? Esto recalculará los totales del contrato.')) return
+  const ok = await confirmar({
+    title: 'Eliminar planilla',
+    message: '¿Eliminar esta planilla? Esto recalculará los totales del contrato. Esta acción no se puede deshacer.',
+    confirmText: 'Sí, eliminar',
+  })
+  if (!ok) return
+
   try {
     await axios.delete(`/api/planillas/${idPlanilla}`)
     await Promise.all([cargarPlanillas(), cargarContratos()])
+    showToast('Planilla eliminada correctamente.', 'success')
   } catch (e) {
     console.error(e)
-    alert('No se pudo eliminar la planilla.')
+    showToast('No se pudo eliminar la planilla.', 'error')
   }
+}
+
+function abrirEditar(p) {
+  planillaEditando.value = p
 }
 
 const alGuardarPlanilla = async () => {
@@ -178,6 +202,7 @@ onMounted(cargarContratos)
             <table class="table table-xs planillas-table">
               <thead>
                 <tr style="border-bottom:2px solid #1e3a52;">
+                  <th class="col-acciones-th">Acciones</th>
                   <th>N°</th><th>Periodo</th>
                   <th>Importe Ejecutado (A)</th><th>Retenciones (B)</th><th>Multas (C)</th>
                   <th>Amort. Anticipo (E)</th><th>Líquido Pagable (LP)</th>
@@ -186,42 +211,59 @@ onMounted(cargarContratos)
                   <th>Pagado SIGEP (F)</th><th>Dif. (LP−F)</th>
                   <th>N° C-31</th><th>Monto C-31 (G)</th><th>Dif. (SIGEP−C31)</th>
                   <th>Aprob. Fiscal</th><th>Elab. Planilla</th><th>Desembolso</th>
-                  <th>Días demora</th><th></th>
+                  <th>Días demora</th>
                 </tr>
               </thead>
               <tbody>
                 <tr v-for="p in planillas" :key="p.id_planilla" style="border-bottom:1px solid #152a3e;">
+                  <td class="col-acciones">
+                    <button class="btn-accion btn-editar" title="Editar planilla" @click="abrirEditar(p)">
+                      <i class="ti ti-pencil"></i>
+                    </button>
+                    <button class="btn-accion btn-eliminar" title="Eliminar planilla" @click="eliminarPlanilla(p.id_planilla)">
+                      <i class="ti ti-trash"></i>
+                    </button>
+                  </td>
                   <td class="font-mono font-bold text-[11px]" style="color:#d0dde8;">{{ p.numero }}</td>
                   <td class="font-mono text-[11px]" style="color:#8ea9bf;">{{ fmtFecha(p.periodo_desde) }} → {{ fmtFecha(p.periodo_hasta) }}</td>
-
                   <td class="font-mono text-[11px]" style="color:#c8dae7;">{{ fmtBs(p.monto_certificado) }}</td>
                   <td class="font-mono text-[11px]" :style="{ color: p.retencion_gcc > 0 ? '#f87171' : '#8ea9bf' }">{{ p.retencion_gcc > 0 ? fmtBs(p.retencion_gcc) : '—' }}</td>
                   <td class="font-mono text-[11px]" :style="{ color: p.multa > 0 ? '#f87171' : '#8ea9bf' }">{{ p.multa > 0 ? fmtBs(p.multa) : '—' }}</td>
-
                   <td class="font-mono text-[11px]" style="color:#c8dae7;">{{ p.amortizacion > 0 ? fmtBs(p.amortizacion) : '—' }}</td>
                   <td class="font-mono font-bold text-[11px]" style="color:#00c9a7;">{{ fmtBs(p.liquido_pagable) }}</td>
-
                   <td class="font-mono text-[11px]" style="color:#c8dae7;">{{ fmtBs(p.saldo_anticipo_por_amortizar) }}</td>
-
                   <td class="font-bold" :style="{ color: p.dias_atraso > 0 ? '#f87171' : '#8ea9bf' }">{{ p.dias_atraso > 0 ? p.dias_atraso : '—' }}</td>
                   <td class="font-mono text-[11px]" style="color:#8ea9bf;">{{ p.avance_fisico !== null ? p.avance_fisico.toFixed(2) + '%' : '—' }}</td>
-
                   <td class="font-mono text-[11px]" style="color:#c8dae7;">{{ p.importe_pagado_sigep > 0 ? fmtBs(p.importe_pagado_sigep) : '—' }}</td>
                   <td class="font-mono text-[11px]" :style="{ color: p.diferencia_lp_f !== 0 ? '#fbbf24' : '#8ea9bf' }">{{ fmtBs(p.diferencia_lp_f) }}</td>
-
                   <td class="font-mono text-[11px]" style="color:#8ea9bf;">{{ p.numero_c31 || '—' }}</td>
                   <td class="font-mono text-[11px]" style="color:#c8dae7;">{{ p.monto_c31 > 0 ? fmtBs(p.monto_c31) : '—' }}</td>
                   <td class="font-mono text-[11px]" :style="{ color: p.diferencia_sigep_c31 !== 0 ? '#fbbf24' : '#8ea9bf' }">{{ fmtBs(p.diferencia_sigep_c31) }}</td>
-
                   <td class="font-mono text-[11px]" style="color:#8ea9bf;">{{ fmtFecha(p.fecha_aprobacion_fiscal) }}</td>
                   <td class="font-mono text-[11px]" style="color:#8ea9bf;">{{ fmtFecha(p.fecha_elaboracion_planilla) }}</td>
                   <td class="font-mono text-[11px]" style="color:#8ea9bf;">{{ fmtFecha(p.fecha_desembolso) }}</td>
-
                   <td class="font-bold" :style="{ color: p.dias_demora > 90 ? '#f87171' : (p.dias_demora > 0 ? '#f59e0b' : '#8ea9bf') }">{{ p.dias_demora !== null && p.dias_demora !== undefined ? p.dias_demora : '—' }}</td>
+                </tr>
 
-                  <td>
-                    <button style="color:#f87171;background:none;border:none;cursor:pointer;font-size:.85rem;" @click="eliminarPlanilla(p.id_planilla)" title="Eliminar planilla">✕</button>
-                  </td>
+                <tr class="total-row">
+                  <td colspan="3">TOTAL</td>
+                  <td class="font-mono text-[11px]">{{ fmtBs(totalCertificado) }}</td>
+                  <td class="font-mono text-[11px]">{{ totalRetencion > 0 ? fmtBs(totalRetencion) : '—' }}</td>
+                  <td class="font-mono text-[11px]">{{ totalMultas > 0 ? fmtBs(totalMultas) : '—' }}</td>
+                  <td class="font-mono text-[11px]">{{ totalAmortizacion > 0 ? fmtBs(totalAmortizacion) : '—' }}</td>
+                  <td class="font-mono font-bold text-[11px]" style="color:#00c9a7;">{{ fmtBs(totalLiquido) }}</td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+                  <td class="font-mono text-[11px]">{{ totalPagadoSigep > 0 ? fmtBs(totalPagadoSigep) : '—' }}</td>
+                  <td class="font-mono text-[11px]">{{ fmtBs(totalDiferenciaLpF) }}</td>
+                  <td></td>
+                  <td class="font-mono text-[11px]">{{ totalMontoC31 > 0 ? fmtBs(totalMontoC31) : '—' }}</td>
+                  <td class="font-mono text-[11px]">{{ fmtBs(totalDiferenciaSigepC31) }}</td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+                  <td class="font-bold">{{ demoraPromedio !== null ? demoraPromedio + ' d.' : '—' }}</td>
                 </tr>
               </tbody>
             </table>
@@ -236,11 +278,51 @@ onMounted(cargarContratos)
       @close="mostrarModal = false"
       @created="alGuardarPlanilla"
     />
+
+    <EditarPlanilla
+      v-if="planillaEditando"
+      :key="planillaEditando.id_planilla"
+      :planilla="planillaEditando"
+      @close="planillaEditando = null"
+      @updated="alGuardarPlanilla"
+    />
   </div>
 </template>
 
 <style scoped>
-.planillas-table { min-width: 2300px; }
+.planillas-table { min-width: 2350px; }
 .planillas-table th { white-space: normal; line-height: 1.2; text-align: center; padding: 8px 6px; color: #8ea9bf; font-size: .62rem; text-transform: uppercase; }
 .planillas-table td { padding: 8px 6px; text-align: center; white-space: nowrap; }
+.col-acciones-th { position: sticky; left: 0; z-index: 2; background: #0d1f30; }
+.col-acciones {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: #0d1f30;
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+}
+.btn-accion {
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  font-size: 12px;
+  transition: .15s;
+}
+.btn-editar { background: rgba(77, 179, 240, .10); border-color: rgba(77, 179, 240, .22); color: #55b8ef; }
+.btn-editar:hover { background: rgba(77, 179, 240, .2); border-color: rgba(77, 179, 240, .35); }
+.btn-eliminar { background: rgba(248, 113, 113, .08); border-color: rgba(248, 113, 113, .18); color: #f87171; }
+.btn-eliminar:hover { background: rgba(248, 113, 113, .16); border-color: rgba(248, 113, 113, .3); }
+.total-row td {
+  background: #091520 !important;
+  border-top: 2px solid #1e3a52;
+  color: #f2fbff !important;
+  font-weight: 800;
+}
 </style>

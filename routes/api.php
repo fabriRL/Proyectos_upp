@@ -76,6 +76,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/contratos/{contrato}/planillas', [PlanillaController::class, 'index']);
     Route::post('/contratos/{contrato}/planillas', [PlanillaController::class, 'store']);
     Route::delete('/planillas/{planilla}', [PlanillaController::class, 'destroy']);
+    Route::put('/planillas/{planilla}', [PlanillaController::class, 'update']);
+    
     // indicadores de la pestaña del resumen 
     Route::get('/proyectos/{proyecto}/indicadores', [IndicadorController::class, 'show']);
     //PESTAÑA DEL DECRETO SUPREMO 
@@ -96,6 +98,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // DETALLE DE MODIFICACIONES CONTRACTUAL
     Route::get('/contratos/{contrato}/modificaciones', [ModificacionContractualController::class, 'index']);
     Route::post('/contratos/{contrato}/modificaciones', [ModificacionContractualController::class, 'store']);
+    Route::put('/modificaciones/{modificacion}', [ModificacionContractualController::class, 'update']);
     Route::delete('/modificaciones/{modificacion}', [ModificacionContractualController::class, 'destroy']);
     //DECRETOS SUPREMOS
     Route::get('/decretos-supremos', [CatalogoDecretoSupremoController::class, 'index']);

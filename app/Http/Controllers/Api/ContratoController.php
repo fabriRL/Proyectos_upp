@@ -17,9 +17,6 @@ class ContratoController extends Controller
 
         return response()->json([
             'contratos' => $contratos,
-            // Los totales financieros solo consideran contratos ACTIVOS —
-            // uno desactivado deja de sumar al resumen del proyecto, pero
-            // sigue existiendo completo y visible en la tabla.
             'totales' => $this->calcularTotales($contratos->where('activo', true)),
         ]);
     }
@@ -79,6 +76,11 @@ class ContratoController extends Controller
                 ->diffInDays(Carbon::parse($validated['fecha_conclusion_prevista'])) + 1;
         }
 
+        // Al crear el contrato, sin planillas todavía: Líquido Pagable
+        // Acumulado = anticipo, y Saldo por Pagar = monto_vigente − anticipo.
+        $validated['liquido_pagable_acumulado'] = $validated['anticipo'];
+        $validated['saldo_por_pagar'] = $validated['monto_vigente'] - $validated['anticipo'];
+
         $contrato = ContratoProyecto::create($validated);
 
         return response()->json($contrato, 201);
@@ -130,8 +132,14 @@ class ContratoController extends Controller
             );
         }
 
-        if (array_key_exists('anticipo', $validated) && (float) $contrato->monto_ejecutado_acumulado === 0.0) {
-            $validated['liquido_pagable_acumulado'] = $validated['anticipo'];
+        // Si se está editando el anticipo (o el monto vigente) y el contrato
+        // todavía no tiene planillas, el líquido pagable y el saldo por
+        // pagar se recalculan con la fórmula base (sin ejecución todavía).
+        if ((array_key_exists('anticipo', $validated) || array_key_exists('monto_vigente', $validated))
+            && (float) $contrato->monto_ejecutado_acumulado === 0.0) {
+            $anticipoEfectivo = $validated['anticipo'] ?? $contrato->anticipo;
+            $validated['liquido_pagable_acumulado'] = $anticipoEfectivo;
+            $validated['saldo_por_pagar'] = $montoVigenteEfectivo - $anticipoEfectivo;
         }
 
         if ($request->hasFile('archivo_orden_proceder')) {
@@ -149,9 +157,6 @@ class ContratoController extends Controller
         return response()->json($contrato);
     }
 
-    // Reemplaza al antiguo botón "Eliminar" de la tabla — NO borra nada
-    // (ni físico ni lógico), solo cambia el estado de negocio. El contrato
-    // queda 100% intacto, editable, y reversible con la misma acción.
     public function toggleActivo(Request $request, ContratoProyecto $contrato)
     {
         $contrato->update([
@@ -162,9 +167,6 @@ class ContratoController extends Controller
         return response()->json($contrato);
     }
 
-    // Se mantiene disponible por si en algún momento se necesita un borrado
-    // lógico real (auditoría/depuración administrativa) — ya no se usa
-    // desde el botón principal de la tabla.
     public function destroy(ContratoProyecto $contrato)
     {
         if ($contrato->archivo_orden_proceder_path) {
@@ -178,7 +180,7 @@ class ContratoController extends Controller
     {
         return [
             'monto_vigente' => (float) $contratos->sum('monto_vigente'),
-            'monto_ejecutado' => (float) $contratos->sum('monto_ejecutado_acumulado'),
+            'monto_ejecutado' => (float) $contratos->sum('monto_ejecut  ado_acumulado'),
             'saldo_por_pagar' => (float) $contratos->sum('saldo_por_pagar'),
             'anticipo' => (float) $contratos->sum('anticipo'),
             'amortizacion_acumulada' => (float) $contratos->sum('amortizacion_acumulada'),
