@@ -10,6 +10,9 @@ use Illuminate\Support\Facades\Storage;
 
 class ModificacionContractualController extends Controller
 {
+    // Debe coincidir exactamente con la misma lista en ContratoController.
+    private const ESTADOS_QUE_SUMAN = ['Vigente', 'En trámite'];
+
     public function index(ContratoProyecto $contrato)
     {
         $modificaciones = $contrato->modificaciones()->orderBy('numero')->get();
@@ -92,6 +95,8 @@ class ModificacionContractualController extends Controller
             ]);
         }
 
+        $this->recalcularMontoVigente($contrato->fresh());
+
         return response()->json($modificacion, 201);
     }
 
@@ -113,10 +118,6 @@ class ModificacionContractualController extends Controller
 
         $contrato = $modificacion->contrato;
 
-        // Regla de negocio: solo se puede cambiar la fecha si esta es la
-        // ÚLTIMA modificación del contrato — editar una fecha intermedia
-        // rompería el historial de todas las modificaciones posteriores
-        // (su "fecha_anterior" quedaría desincronizada del cambio).
         $numeroMasReciente = $contrato->modificaciones()->max('numero');
         $esLaUltima = $modificacion->numero === $numeroMasReciente;
 
@@ -131,9 +132,6 @@ class ModificacionContractualController extends Controller
             ], 422);
         }
 
-        // Si sí se permite el cambio de fecha (es la última), se recalcula
-        // el plazo de ESTA modificación usando su propia fecha_anterior
-        // (que nunca se toca), y se actualiza la fecha vigente del contrato.
         if (array_key_exists('nueva_fecha_conclusion', $data) && !empty($data['nueva_fecha_conclusion']) && $esLaUltima) {
             if ($modificacion->fecha_anterior) {
                 $tsAnterior = strtotime($modificacion->fecha_anterior->format('Y-m-d'));
@@ -161,15 +159,60 @@ class ModificacionContractualController extends Controller
 
         $modificacion->update($data);
 
+        // Se recalcula SIEMPRE, no solo si cambió el monto — porque cambiar
+        // el Estado del Documento (ej. de "Vigente" a "Anulado") también
+        // debe quitar o agregar esta modificación del total.
+        $this->recalcularMontoVigente($contrato->fresh());
+
         return response()->json($modificacion);
     }
 
     public function destroy(ModificacionContractual $modificacion)
     {
+        $contrato = $modificacion->contrato;
+
         if ($modificacion->archivo_pdf_path) {
             Storage::disk('public')->delete($modificacion->archivo_pdf_path);
         }
         $modificacion->delete();
+
+        $this->recalcularMontoVigente($contrato->fresh());
+
         return response()->json(['message' => 'Modificación eliminada']);
+    }
+
+    // Recalcula Monto Vigente del contrato a partir de su monto original
+    // más la suma de modificaciones activas, y actualiza en cascada los
+    // dos campos que dependen de monto_vigente (Saldo por Pagar y Avance
+    // Financiero). Estas dos fórmulas son una copia intencional de las de
+    // PlanillaController — se duplican a propósito para no tocar ese
+    // archivo, tal como se acordó.
+    private function recalcularMontoVigente(ContratoProyecto $contrato): void
+    {
+        $sumaModificaciones = (float) $contrato->modificaciones()
+            ->whereIn('estado_documento', self::ESTADOS_QUE_SUMAN)
+            ->sum('monto_modificacion');
+
+        $montoVigenteNuevo = (float) $contrato->monto_vigente_original + $sumaModificaciones;
+
+        // Saldo por Pagar = Monto Vigente − Líquido Pagable Acumulado.
+        $saldoPorPagar = $montoVigenteNuevo - (float) $contrato->liquido_pagable_acumulado;
+
+        // Avance Financiero = (Ejecutado − Amortización + Anticipo) / Vigente.
+        // (Fórmula verificada con datos reales — ver Paquete I: 78,85%.)
+        $avanceFinanciero = $montoVigenteNuevo > 0
+            ? round(
+                (((float) $contrato->monto_ejecutado_acumulado
+                    - (float) $contrato->amortizacion_acumulada
+                    + (float) $contrato->anticipo) / $montoVigenteNuevo) * 100,
+                2
+            )
+            : 0;
+
+        $contrato->update([
+            'monto_vigente' => round($montoVigenteNuevo, 2),
+            'saldo_por_pagar' => round($saldoPorPagar, 2),
+            'avance_financiero' => $avanceFinanciero,
+        ]);
     }
 }

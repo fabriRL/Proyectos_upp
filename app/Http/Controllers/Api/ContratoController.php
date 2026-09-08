@@ -11,6 +11,11 @@ use Illuminate\Support\Facades\Storage;
 
 class ContratoController extends Controller
 {
+    // Estados de modificación que SÍ suman al Monto Vigente. Debe coincidir
+    // exactamente con la misma lista en ModificacionContractualController.
+    // Si cambia la regla de negocio, actualiza ambas.
+    private const ESTADOS_QUE_SUMAN = ['Vigente', 'En trámite'];
+
     public function index(Proyecto $proyecto)
     {
         $contratos = $proyecto->contratos()->orderBy('numero')->get();
@@ -76,8 +81,10 @@ class ContratoController extends Controller
                 ->diffInDays(Carbon::parse($validated['fecha_conclusion_prevista'])) + 1;
         }
 
-        // Al crear el contrato, sin planillas todavía: Líquido Pagable
-        // Acumulado = anticipo, y Saldo por Pagar = monto_vigente − anticipo.
+        // El contrato nace sin modificaciones — el monto vigente ES el
+        // original, y ambos arrancan iguales.
+        $validated['monto_vigente_original'] = $validated['monto_vigente'];
+
         $validated['liquido_pagable_acumulado'] = $validated['anticipo'];
         $validated['saldo_por_pagar'] = $validated['monto_vigente'] - $validated['anticipo'];
 
@@ -125,6 +132,7 @@ class ContratoController extends Controller
         }
 
         $montoVigenteEfectivo = $validated['monto_vigente'] ?? $contrato->monto_vigente;
+
         if (!empty($validated['anticipo_porcentaje'])) {
             $validated['anticipo'] = round(
                 $montoVigenteEfectivo * ($validated['anticipo_porcentaje'] / 100),
@@ -132,9 +140,19 @@ class ContratoController extends Controller
             );
         }
 
-        // Si se está editando el anticipo (o el monto vigente) y el contrato
-        // todavía no tiene planillas, el líquido pagable y el saldo por
-        // pagar se recalculan con la fórmula base (sin ejecución todavía).
+        // Si el usuario edita Monto Vigente DIRECTO en este formulario (no
+        // a través de una modificación), hay que correr monto_vigente_original
+        // hacia arriba/abajo por la misma diferencia — para que la próxima
+        // vez que se cree/edite una modificación, el recálculo automático
+        // no "pise" este ajuste manual.
+        if (array_key_exists('monto_vigente', $validated)) {
+            $sumaModificaciones = (float) $contrato->modificaciones()
+                ->whereIn('estado_documento', self::ESTADOS_QUE_SUMAN)
+                ->sum('monto_modificacion');
+
+            $validated['monto_vigente_original'] = $validated['monto_vigente'] - $sumaModificaciones;
+        }
+
         if ((array_key_exists('anticipo', $validated) || array_key_exists('monto_vigente', $validated))
             && (float) $contrato->monto_ejecutado_acumulado === 0.0) {
             $anticipoEfectivo = $validated['anticipo'] ?? $contrato->anticipo;
@@ -180,7 +198,10 @@ class ContratoController extends Controller
     {
         return [
             'monto_vigente' => (float) $contratos->sum('monto_vigente'),
-            'monto_ejecutado' => (float) $contratos->sum('monto_ejecut  ado_acumulado'),
+            // Bug corregido: tenía un espacio en medio del nombre de la
+            // columna ("monto_ejecut  ado_acumulado"), por eso este total
+            // siempre daba 0.
+            'monto_ejecutado' => (float) $contratos->sum('monto_ejecutado_acumulado'),
             'saldo_por_pagar' => (float) $contratos->sum('saldo_por_pagar'),
             'anticipo' => (float) $contratos->sum('anticipo'),
             'amortizacion_acumulada' => (float) $contratos->sum('amortizacion_acumulada'),

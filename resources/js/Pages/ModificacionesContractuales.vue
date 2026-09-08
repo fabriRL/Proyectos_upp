@@ -33,6 +33,11 @@ const numeroMasReciente = computed(() =>
   modificaciones.value.length ? Math.max(...modificaciones.value.map(m => m.numero)) : null
 )
 
+// --- Total de "Monto Modif. (Bs)" de la tabla ---
+const totalMontoModificacion = computed(() =>
+  modificaciones.value.reduce((sum, m) => sum + (Number(m.monto_modificacion) || 0), 0)
+)
+
 const meses = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic']
 function fmtFecha(fecha) {
   if (!fecha) return '—'
@@ -237,6 +242,12 @@ onMounted(cargarContratos)
                     <span v-else style="color:#4d6478;">—</span>
                   </td>
                 </tr>
+
+                <tr class="total-row">
+                  <td colspan="8">TOTAL</td>
+                  <td class="money" style="color:#00c9a7;">{{ fmtBs(totalMontoModificacion) }}</td>
+                  <td colspan="5"></td>
+                </tr>
               </tbody>
             </table>
           </div>
@@ -334,4 +345,10 @@ onMounted(cargarContratos)
 .badge { display: inline-block; padding: 4px 10px; border-radius: 6px; border: 1px solid; font-size: .74rem; font-weight: 700; }
 .pdf-link { display: inline-flex; align-items: center; gap: 4px; color: #00c9a7; font-weight: 700; text-decoration: none; font-size: .82rem; }
 .pdf-link:hover { text-decoration: underline; }
+.total-row td {
+  background: #091520 !important;
+  border-top: 2px solid #1e3a52;
+  color: #f2fbff !important;
+  font-weight: 800;
+}
 </style>

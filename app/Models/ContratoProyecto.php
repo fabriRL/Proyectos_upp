@@ -12,16 +12,16 @@ class ContratoProyecto extends Model
     protected $table = 'contratos_proyecto';
     protected $primaryKey = 'id_contrato';
 
-    // --- Auditoría automática (ya la maneja Eloquent solo, no van en $fillable) ---
     const CREATED_AT = 'creado_en';
     const UPDATED_AT = 'actualizado_en';
-    const DELETED_AT = 'eliminado_en'; // Borrado lógico — la fila NUNCA se elimina de la BD.
+    const DELETED_AT = 'eliminado_en';
 
     protected $fillable = [
         'id_proyecto', 'id_componente', 'numero', 'tipo_contrato', 'contratista',
         'numero_minuta', 'fecha_firma_contrato', 'fecha_orden_proceder', 'plazo_dias',
         'archivo_orden_proceder_path', 'archivo_orden_proceder_nombre_original',
-        'monto_vigente', 'anticipo', 'anticipo_porcentaje', 'amortizacion_acumulada', 'monto_ejecutado_acumulado',
+        'monto_vigente', 'monto_vigente_original', 'anticipo', 'anticipo_porcentaje',
+        'amortizacion_acumulada', 'monto_ejecutado_acumulado',
         'liquido_pagable_acumulado', 'multas', 'retencion_gcc', 'total_descuentos',
         'saldo_por_pagar', 'estado_contractual', 'fecha_conclusion_prevista',
         'fecha_entrega_provisional', 'fecha_entrega_definitiva', 'avance_fisico',
@@ -31,6 +31,7 @@ class ContratoProyecto extends Model
 
     protected $casts = [
         'monto_vigente' => 'decimal:2',
+        'monto_vigente_original' => 'decimal:2',
         'anticipo' => 'decimal:2',
         'anticipo_porcentaje' => 'decimal:2',
         'saldo_por_pagar' => 'decimal:2',

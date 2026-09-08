@@ -112,7 +112,7 @@ const variantes = {
 .confirm-btn-accept {
   border: none;
 }
-.confirm-btn-accept:hover {
+.confirm-btn-accept:hover { 
   filter: brightness(1.08);
 }
 

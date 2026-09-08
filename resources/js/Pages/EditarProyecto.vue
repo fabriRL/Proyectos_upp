@@ -3,9 +3,11 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import axios from '@/lib/axios'
 import MapaUbicacion from '@/Components/MapaUbicacion.vue'
+import { useToast } from '@/composables/useToast.js'
 
 const router = useRouter()
 const route = useRoute()
+const { showToast } = useToast()
 
 const form = ref({
   codigo: '',
@@ -14,16 +16,12 @@ const form = ref({
   fiscal_general: '',
   entidad_ejecutora: '',
   fuente_financiamiento: '',
-  norma_financiador: '',
-  monto_decreto: '',
-
   familias_productoras: '',
   total_beneficiarios: '',
   empleos_directos_construccion: '',
   empleos_indirectos_construccion: '',
   empleos_directos_operacion: '',
   empleos_indirectos_operacion: '',
-
   fecha_inicio_contractual: '',
   fecha_conclusion_inicial_contractual: '',
   plazo_contractual_inicial_dias: '',
@@ -36,35 +34,85 @@ const guardando = ref(false)
 const error = ref('')
 const erroresCampo = ref({})
 
+// --- Catálogo de Decretos Supremos ---
+const decretosSupremos = ref([])
+const idDecretoSupremoSeleccionado = ref('') // '' = nada, 'nuevo' = creando, o el id real
+const nuevoDecretoNumero = ref('')
+const nuevoDecretoMonto = ref(null)
+const guardandoDecreto = ref(false)
+
+async function cargarDecretosSupremos() {
+  try {
+    const { data } = await axios.get('/api/decretos-supremos')
+    decretosSupremos.value = data
+  } catch (e) {
+    console.error('No se pudo cargar el catálogo de Decretos Supremos:', e)
+  }
+}
+
+const decretoSeleccionadoInfo = computed(() =>
+  decretosSupremos.value.find(d => d.id_decreto_supremo === idDecretoSupremoSeleccionado.value) ?? null
+)
+
+async function guardarNuevoDecreto() {
+  if (!nuevoDecretoNumero.value?.trim()) {
+    showToast('Escribe el número del Decreto Supremo antes de guardarlo.', 'warning')
+    return
+  }
+  guardandoDecreto.value = true
+  try {
+    const { data } = await axios.post('/api/decretos-supremos', {
+      numero_decreto: nuevoDecretoNumero.value.trim(),
+      monto: nuevoDecretoMonto.value || 0,
+    })
+    decretosSupremos.value.push(data)
+    idDecretoSupremoSeleccionado.value = data.id_decreto_supremo
+    nuevoDecretoNumero.value = ''
+    nuevoDecretoMonto.value = null
+    showToast(`Decreto Supremo "${data.numero_decreto}" guardado y seleccionado.`, 'success')
+  } catch (e) {
+    console.error(e)
+    const msg = e.response?.data?.errors?.numero_decreto?.[0]
+    showToast(msg ?? 'No se pudo guardar el Decreto Supremo.', 'error')
+  } finally {
+    guardandoDecreto.value = false
+  }
+}
+
+function cancelarNuevoDecreto() {
+  // Vuelve al decreto que ya tenía el proyecto (si tenía uno), no lo deja vacío.
+  idDecretoSupremoSeleccionado.value = decretoOriginalId.value ?? ''
+  nuevoDecretoNumero.value = ''
+  nuevoDecretoMonto.value = null
+}
+
+// Guarda el decreto original del proyecto (antes de cualquier cambio del
+// usuario), para poder volver a él si abre "Crear nuevo" y luego cancela.
+const decretoOriginalId = ref(null)
+
 // --- Componentes / Líneas y Capacidades ---
 const componentes = ref([])
-
 function agregarComponente() {
   componentes.value.push({ nombre: '', descripcion: '', productos: [] })
 }
-
 function eliminarComponente(index) {
   componentes.value.splice(index, 1)
 }
-
 function agregarProducto(indexComponente) {
   componentes.value[indexComponente].productos.push({ nombre: '', cantidad: null, unidad: '' })
 }
-
 function eliminarProducto(indexComponente, indexProducto) {
   componentes.value[indexComponente].productos.splice(indexProducto, 1)
 }
 
 // --- Ubicaciones (una o más) ---
 const ubicaciones = ref([])
-
 function agregarUbicacion() {
   ubicaciones.value.push({
     departamento: '', provincia: '', municipio: '', comunidad_localidad: '',
     coordenada_norte: '', coordenada_este: '', zona_utm: '',
   })
 }
-
 function eliminarUbicacion(index) {
   ubicaciones.value.splice(index, 1)
 }
@@ -95,6 +143,10 @@ function validarPasoActual() {
       errorPaso.value = 'Completa al menos el código y el nombre del proyecto antes de continuar.'
       return false
     }
+    if (idDecretoSupremoSeleccionado.value === 'nuevo') {
+      errorPaso.value = 'Guarda el nuevo Decreto Supremo (o cancélalo) antes de continuar.'
+      return false
+    }
   }
   return true
 }
@@ -108,13 +160,12 @@ function onSubmit() {
   guardar()
 }
 
-// --- Normaliza fechas que puedan llegar con hora/timezone (ej. "2025-11-21T00:00:00.000000Z") ---
+// --- Normaliza fechas que puedan llegar con hora/timezone ---
 function soloFecha(valor) {
   if (!valor) return ''
   return String(valor).split('T')[0]
 }
 
-// --- Busca un valor de beneficiarios por categoría + tipo, tal como los guarda el backend ---
 function buscarBeneficiario(lista, categoria, tipo) {
   const fila = (lista || []).find(b => b.categoria === categoria && b.tipo === tipo)
   return fila?.cantidad ?? ''
@@ -123,10 +174,8 @@ function buscarBeneficiario(lista, categoria, tipo) {
 async function cargarProyecto() {
   cargando.value = true
   error.value = ''
-
   try {
     const { data } = await axios.get(`/api/proyectos/${route.params.codigo}`)
-
     form.value = {
       codigo: data.codigo ?? '',
       numero_sisin_web: data.numero_sisin_web ?? '',
@@ -134,21 +183,23 @@ async function cargarProyecto() {
       fiscal_general: data.fiscal_general ?? '',
       entidad_ejecutora: data.entidad_ejecutora ?? '',
       fuente_financiamiento: data.fuente_financiamiento ?? '',
-      norma_financiador: data.norma_financiador ?? '',
-      monto_decreto: data.monto_decreto ?? '',
-
       familias_productoras: buscarBeneficiario(data.beneficiarios, 'Beneficiarios', 'Familias productoras'),
       total_beneficiarios: buscarBeneficiario(data.beneficiarios, 'Beneficiarios', 'Total beneficiarios'),
       empleos_directos_construccion: buscarBeneficiario(data.beneficiarios, 'Empleo - Construcción', 'Directos'),
       empleos_indirectos_construccion: buscarBeneficiario(data.beneficiarios, 'Empleo - Construcción', 'Indirectos'),
       empleos_directos_operacion: buscarBeneficiario(data.beneficiarios, 'Empleo - Operación', 'Directos'),
       empleos_indirectos_operacion: buscarBeneficiario(data.beneficiarios, 'Empleo - Operación', 'Indirectos'),
-
       fecha_inicio_contractual: soloFecha(data.fecha_inicio_contractual),
       fecha_conclusion_inicial_contractual: soloFecha(data.fecha_conclusion_inicial_contractual),
       plazo_contractual_inicial_dias: data.plazo_contractual_inicial_dias ?? '',
       fecha_conclusion_actual: soloFecha(data.fecha_conclusion_actual),
       plazo_contractual_actual_dias: data.plazo_contractual_actual_dias ?? '',
+    }
+
+    // Precarga el Decreto Supremo que ya tenía el proyecto.
+    if (data.id_decreto_supremo) {
+      idDecretoSupremoSeleccionado.value = data.id_decreto_supremo
+      decretoOriginalId.value = data.id_decreto_supremo
     }
 
     ubicaciones.value = (data.ubicaciones ?? []).map(u => ({
@@ -183,7 +234,6 @@ async function cargarProyecto() {
 }
 
 // --- Cálculo automático de plazos y estado del cronograma ---
-
 function diffDias(desde, hasta) {
   if (!desde || !hasta) return null
   const d1 = new Date(desde + 'T00:00:00')
@@ -247,19 +297,19 @@ async function guardar() {
   error.value = ''
   erroresCampo.value = {}
   guardando.value = true
-
   try {
     const payload = limpiarVacios(form.value)
     payload.ubicaciones = ubicaciones.value
     payload.componentes = componentes.value
 
+    if (idDecretoSupremoSeleccionado.value && idDecretoSupremoSeleccionado.value !== 'nuevo') {
+      payload.id_decreto_supremo = idDecretoSupremoSeleccionado.value
+    }
+
     const { data } = await axios.put(`/api/proyectos/${route.params.codigo}`, payload)
-
     router.push({ name: 'datos', params: { codigo: data.codigo } })
-
   } catch (e) {
     console.error('Error al actualizar proyecto:', e)
-
     if (e.response?.status === 422) {
       erroresCampo.value = e.response.data.errors || {}
       error.value = 'Revisa los campos marcados en rojo.'
@@ -273,19 +323,20 @@ async function guardar() {
   }
 }
 
-onMounted(cargarProyecto)
+onMounted(async () => {
+  await cargarDecretosSupremos()
+  await cargarProyecto()
+})
 </script>
 
 <template>
   <div class="page">
-
     <div v-if="cargando" class="state-loading">
       <i class="ti ti-loader-2 spinner"></i>
       <span>Cargando información del proyecto…</span>
     </div>
 
     <template v-else>
-
       <p class="page-intro">Edite la información base del proyecto de inversión pública.</p>
 
       <!-- LÍNEA DE PASOS -->
@@ -342,11 +393,6 @@ onMounted(cargarProyecto)
                 <input v-model="form.numero_sisin_web" type="text" placeholder="Ej. 0041-04174-00000" :disabled="guardando" />
               </div>
 
-              <div class="field">
-                <label>Monto del decreto (Bs)</label>
-                <input v-model="form.monto_decreto" type="number" step="0.01" placeholder="0.00" :disabled="guardando" />
-              </div>
-
               <div class="field span-full">
                 <label>Nombre del proyecto</label>
                 <input v-model="form.nombre" type="text" placeholder="Ingrese el nombre completo del proyecto" :disabled="guardando" />
@@ -368,9 +414,68 @@ onMounted(cargarProyecto)
                 <input v-model="form.fuente_financiamiento" type="text" placeholder="Ej. 92 - FINPRO" :disabled="guardando" />
               </div>
 
+              <!-- DECRETO SUPREMO -->
               <div class="field span-full">
-                <label>Norma financiador</label>
-                <input v-model="form.norma_financiador" type="text" placeholder="Ej. D.S. N° 4826 del 16 de noviembre de 2022" :disabled="guardando" />
+                <label>Decreto Supremo</label>
+                <select v-model="idDecretoSupremoSeleccionado" :disabled="guardando || idDecretoSupremoSeleccionado === 'nuevo'">
+                  <option value="">— Selecciona un Decreto Supremo —</option>
+                  <option v-for="d in decretosSupremos" :key="d.id_decreto_supremo" :value="d.id_decreto_supremo">
+                    {{ d.numero_decreto }} — Bs {{ Number(d.monto).toLocaleString('es-BO') }}
+                  </option>
+                  <option value="nuevo">+ Crear nuevo Decreto Supremo</option>
+                </select>
+              </div>
+
+              <!-- CREAR NUEVO DECRETO -->
+              <div v-if="idDecretoSupremoSeleccionado === 'nuevo'" class="field span-full decreto-nuevo-card">
+                <div class="decreto-nuevo-header">
+                  <i class="ti ti-file-plus"></i>
+                  <span>Nuevo Decreto Supremo</span>
+                </div>
+                <div class="decreto-nuevo-body">
+                  <div class="field">
+                    <label>N° de Decreto Supremo</label>
+                    <input
+                      v-model="nuevoDecretoNumero"
+                      type="text"
+                      placeholder="Ej. D.S. N° 4826 del 16 de noviembre de 2022"
+                      :disabled="guardandoDecreto"
+                    />
+                  </div>
+                  <div class="field">
+                    <label>Monto del Decreto (Bs)</label>
+                    <input
+                      v-model.number="nuevoDecretoMonto"
+                      type="number"
+                      step="0.01"
+                      placeholder="0.00"
+                      :disabled="guardandoDecreto"
+                    />
+                  </div>
+                </div>
+                <div class="decreto-nuevo-actions">
+                  <button type="button" class="btn-decreto-cancelar" @click="cancelarNuevoDecreto" :disabled="guardandoDecreto">
+                    Cancelar
+                  </button>
+                  <button type="button" class="btn-decreto-guardar" @click="guardarNuevoDecreto" :disabled="guardandoDecreto">
+                    <i v-if="guardandoDecreto" class="ti ti-loader-2 spin-icon"></i>
+                    <i v-else class="ti ti-device-floppy"></i>
+                    {{ guardandoDecreto ? 'Guardando...' : 'Guardar Decreto Supremo' }}
+                  </button>
+                </div>
+              </div>
+
+              <!-- DECRETO YA CONFIRMADO / SELECCIONADO -->
+              <div v-else-if="decretoSeleccionadoInfo" class="field span-full decreto-confirmado-card">
+                <div class="decreto-confirmado-icon">
+                  <i class="ti ti-circle-check"></i>
+                </div>
+                <div class="decreto-confirmado-info">
+                  <div class="decreto-confirmado-numero">{{ decretoSeleccionadoInfo.numero_decreto }}</div>
+                  <div class="decreto-confirmado-monto">
+                    Monto vigente: <strong>Bs {{ Number(decretoSeleccionadoInfo.monto).toLocaleString('es-BO') }}</strong>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -468,7 +573,6 @@ onMounted(cargarProyecto)
             </div>
 
             <div class="card-body">
-
               <div class="subcard">
                 <div class="subcard-header">
                   <i class="ti ti-users"></i>
@@ -521,7 +625,6 @@ onMounted(cargarProyecto)
                   </div>
                 </div>
               </div>
-
             </div>
           </div>
 
@@ -740,16 +843,12 @@ onMounted(cargarProyecto)
             <span v-else>{{ guardando ? 'Guardando...' : 'Guardar cambios' }}</span>
           </button>
         </div>
-
       </form>
-
     </template>
-
   </div>
 </template>
 
 <style scoped>
-
 .page {
   padding: 24px;
   color: #dcebf5;
@@ -985,7 +1084,8 @@ onMounted(cargarProyecto)
   color: #00c9a7;
 }
 
-.field input {
+.field input,
+.field select {
   padding: 9px 11px;
   border: 1px solid #1e3a52;
   border-radius: 7px;
@@ -1009,12 +1109,13 @@ onMounted(cargarProyecto)
   cursor: default;
 }
 
-.field input:focus {
+.field input:focus,
+.field select:focus {
   border-color: #00c9a7;
   box-shadow: 0 0 0 3px rgba(0, 201, 167, .1);
 }
 
-.field input:disabled { opacity: .85; cursor: not-allowed; }
+.field input:disabled, .field select:disabled { opacity: .85; cursor: not-allowed; }
 .field input::placeholder { color: #4d6478; }
 
 .field-error {
@@ -1030,6 +1131,111 @@ onMounted(cargarProyecto)
   font-size: .74rem;
   font-weight: 700;
 }
+
+/* --- Decreto Supremo: crear nuevo --- */
+.decreto-nuevo-card {
+  border: 1px solid rgba(0, 201, 167, .3);
+  border-radius: 10px;
+  background: rgba(0, 201, 167, .04);
+  padding: 14px 16px 16px;
+}
+
+.decreto-nuevo-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 10px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid rgba(0, 201, 167, .2);
+  color: #00c9a7;
+  font-size: .78rem;
+  font-weight: 700;
+}
+
+.decreto-nuevo-header i { font-size: 1rem; }
+
+.decreto-nuevo-body {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.decreto-nuevo-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.btn-decreto-cancelar {
+  padding: 8px 14px;
+  border-radius: 7px;
+  border: 1px solid #1e3a52;
+  background: transparent;
+  color: #8ea9bf;
+  font-size: .78rem;
+  cursor: pointer;
+}
+
+.btn-decreto-cancelar:hover:not(:disabled) { border-color: #8ea9bf; color: #dcebf5; }
+
+.btn-decreto-guardar {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 16px;
+  border-radius: 7px;
+  border: none;
+  background: linear-gradient(135deg, #00d0ae, #00aa91);
+  color: #052029;
+  font-weight: 700;
+  font-size: .78rem;
+  cursor: pointer;
+  box-shadow: 0 5px 15px rgba(0, 201, 167, .15);
+}
+
+.btn-decreto-guardar:hover:not(:disabled) { filter: brightness(1.07); }
+.btn-decreto-cancelar:disabled, .btn-decreto-guardar:disabled { opacity: .55; cursor: not-allowed; }
+
+.spin-icon { animation: spin 1s linear infinite; }
+
+/* --- Decreto Supremo: confirmado --- */
+.decreto-confirmado-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid rgba(0, 201, 167, .35);
+  border-radius: 10px;
+  background: linear-gradient(135deg, rgba(0, 201, 167, .1), rgba(0, 201, 167, .03));
+}
+
+.decreto-confirmado-icon {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9px;
+  background: rgba(0, 201, 167, .15);
+  color: #00c9a7;
+  font-size: 19px;
+}
+
+.decreto-confirmado-numero {
+  color: #f2fbff;
+  font-weight: 700;
+  font-size: .85rem;
+}
+
+.decreto-confirmado-monto {
+  color: #8ea9bf;
+  font-size: .74rem;
+  margin-top: 2px;
+}
+
+.decreto-confirmado-monto strong { color: #00c9a7; }
 
 .plazo-comparativo {
   display: flex;
@@ -1172,6 +1378,6 @@ onMounted(cargarProyecto)
 @media (max-width: 640px) {
   .grid-2, .grid-3 { grid-template-columns: 1fr; }
   .stepper-label { max-width: 70px; font-size: .6rem; }
+  .decreto-nuevo-body { grid-template-columns: 1fr; }
 }
-
 </style>
