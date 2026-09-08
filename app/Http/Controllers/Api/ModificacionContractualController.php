@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Storage;
 class ModificacionContractualController extends Controller
 {
     // Debe coincidir exactamente con la misma lista en ContratoController.
-    private const ESTADOS_QUE_SUMAN = ['Vigente', 'En trámite'];
+    private const ESTADOS_QUE_SUMAN = ['Concluido'];
 
     public function index(ContratoProyecto $contrato)
     {
@@ -160,8 +160,8 @@ class ModificacionContractualController extends Controller
         $modificacion->update($data);
 
         // Se recalcula SIEMPRE, no solo si cambió el monto — porque cambiar
-        // el Estado del Documento (ej. de "Vigente" a "Anulado") también
-        // debe quitar o agregar esta modificación del total.
+        // el Estado del Documento (ej. de "Pendiente" a "Concluido") también
+        // debe agregar o quitar esta modificación del total.
         $this->recalcularMontoVigente($contrato->fresh());
 
         return response()->json($modificacion);
@@ -182,11 +182,11 @@ class ModificacionContractualController extends Controller
     }
 
     // Recalcula Monto Vigente del contrato a partir de su monto original
-    // más la suma de modificaciones activas, y actualiza en cascada los
-    // dos campos que dependen de monto_vigente (Saldo por Pagar y Avance
-    // Financiero). Estas dos fórmulas son una copia intencional de las de
-    // PlanillaController — se duplican a propósito para no tocar ese
-    // archivo, tal como se acordó.
+    // más la suma de modificaciones ya CONCLUIDAS, y actualiza en cascada
+    // los dos campos que dependen de monto_vigente (Saldo por Pagar y
+    // Avance Financiero). Estas dos fórmulas son una copia intencional de
+    // las de PlanillaController — se duplican a propósito para no tocar
+    // ese archivo, tal como se acordó.
     private function recalcularMontoVigente(ContratoProyecto $contrato): void
     {
         $sumaModificaciones = (float) $contrato->modificaciones()

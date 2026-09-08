@@ -2,7 +2,6 @@
 import { reactive, ref, computed } from 'vue'
 import axios from '@/lib/axios'
 import { useToast } from '@/composables/useToast.js'
-const { showToast } = useToast()
 
 const props = defineProps({
   show: Boolean,
@@ -10,6 +9,7 @@ const props = defineProps({
   fechaActual: { type: String, default: null },
 })
 const emit = defineEmits(['close', 'created'])
+const { showToast } = useToast()
 
 const form = reactive({
   tipo_modificacion: '',
@@ -18,10 +18,10 @@ const form = reactive({
   nueva_fecha_conclusion: '',
   monto_modificacion: null,
   descripcion: '',
-  estado_registro_sicoes: 'Pendiente de registro',
+  estado_registro_sicoes: 'Pendiente',
   fecha_informe_aprobacion: '',
   fecha_firma_documento: '',
-  estado_documento: 'Vigente',
+  estado_documento: 'Pendiente',
 })
 
 const archivoPdf = ref(null)
@@ -62,10 +62,10 @@ function resetForm() {
     nueva_fecha_conclusion: '',
     monto_modificacion: null,
     descripcion: '',
-    estado_registro_sicoes: 'Pendiente de registro',
+    estado_registro_sicoes: 'Pendiente',
     fecha_informe_aprobacion: '',
     fecha_firma_documento: '',
-    estado_documento: 'Vigente',
+    estado_documento: 'Pendiente',
   })
   archivoPdf.value = null
   nombreArchivo.value = ''
@@ -105,6 +105,7 @@ async function guardar() {
     enviando.value = false
   }
 }
+
 function cerrar() {
   resetForm()
   emit('close')
@@ -157,19 +158,18 @@ const sFechaActualBox = { display: 'flex', alignItems: 'center', gap: '6px', pad
             <div :style="sField">
               <label :style="sLabel">Estado de Registro en SICOES</label>
               <select v-model="form.estado_registro_sicoes" :style="sInput">
-                <option>Registrado</option>
-                <option>Pendiente de registro</option>
-                <option>No aplica</option>
+                <option>Firmado y Reportado</option>
+                <option>Pendiente</option>
               </select>
             </div>
 
-            <div :style="sField">
+            <div :style="sFieldFull">
               <label :style="sLabel">Nueva fecha de conclusión</label>
               <div :style="sFechaActualBox">
                 <i class="ti ti-info-circle" style="color:#fbbf24;"></i>
                 <span>Fecha actual: <strong style="color:#fbbf24;">{{ fechaActual ? fmtFecha(fechaActual) : 'sin fecha registrada' }}</strong></span>
               </div>
-              <input v-model="form.nueva_fecha_conclusion" type="date" :style="sInput" />
+              <input v-model="form.nueva_fecha_conclusion" type="date" :style="sInput" style="max-width:260px;" />
             </div>
 
             <div :style="sField">
@@ -183,31 +183,29 @@ const sFechaActualBox = { display: 'flex', alignItems: 'center', gap: '6px', pad
                 disabled
                 :style="sInputCalc"
               />
-              <span :style="sHint">Se calcula solo, comparando con la fecha actual mostrada arriba.</span>
+              <span :style="sHint">Se calcula solo, comparando con la fecha actual.</span>
             </div>
-
             <div :style="sField">
               <label :style="sLabel">Monto de la modificación (Bs)</label>
               <input v-model.number="form.monto_modificacion" type="number" step="0.01" :style="sInput" placeholder="0.00" />
             </div>
+
             <div :style="sField">
               <label :style="sLabel">Fecha del informe de aprobación</label>
               <input v-model="form.fecha_informe_aprobacion" type="date" :style="sInput" />
             </div>
-
             <div :style="sField">
               <label :style="sLabel">Fecha de firma del documento</label>
               <input v-model="form.fecha_firma_documento" type="date" :style="sInput" />
             </div>
+
             <div :style="sField">
               <label :style="sLabel">Estado del documento</label>
               <select v-model="form.estado_documento" :style="sInput">
-                <option>Vigente</option>
-                <option>Anulado</option>
-                <option>En trámite</option>
+                <option>Concluido</option>
+                <option>Pendiente</option>
               </select>
             </div>
-
             <div :style="sField">
               <label :style="sLabel">Archivo PDF</label>
               <label :style="sFileBtn">

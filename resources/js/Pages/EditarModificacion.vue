@@ -23,10 +23,10 @@ const form = reactive({
   nueva_fecha_conclusion: soloFecha(props.modificacion.nueva_fecha_conclusion),
   monto_modificacion: props.modificacion.monto_modificacion,
   descripcion: props.modificacion.descripcion ?? '',
-  estado_registro_sicoes: props.modificacion.estado_registro_sicoes ?? 'Pendiente de registro',
+  estado_registro_sicoes: props.modificacion.estado_registro_sicoes ?? 'Pendiente',
   fecha_informe_aprobacion: soloFecha(props.modificacion.fecha_informe_aprobacion),
   fecha_firma_documento: soloFecha(props.modificacion.fecha_firma_documento),
-  estado_documento: props.modificacion.estado_documento ?? 'Vigente',
+  estado_documento: props.modificacion.estado_documento ?? 'Pendiente',
 })
 
 const archivoPdf = ref(null)
@@ -143,9 +143,8 @@ const sFechaActualBox = { display: 'flex', alignItems: 'center', gap: '6px', pad
             <div :style="sField">
               <label :style="sLabel">Estado de Registro en SICOES</label>
               <select v-model="form.estado_registro_sicoes" :style="sInput">
-                <option>Registrado</option>
-                <option>Pendiente de registro</option>
-                <option>No aplica</option>
+                <option>Firmado y Reportado</option>
+                <option>Pendiente</option>
               </select>
             </div>
 
@@ -200,9 +199,8 @@ const sFechaActualBox = { display: 'flex', alignItems: 'center', gap: '6px', pad
             <div :style="sField">
               <label :style="sLabel">Estado del documento</label>
               <select v-model="form.estado_documento" :style="sInput">
-                <option>Vigente</option>
-                <option>Anulado</option>
-                <option>En trámite</option>
+                <option>Concluido</option>
+                <option>Pendiente</option>
               </select>
             </div>
             <div :style="sField">

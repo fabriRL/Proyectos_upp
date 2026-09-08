@@ -11,10 +11,11 @@ use Illuminate\Support\Facades\Storage;
 
 class ContratoController extends Controller
 {
-    // Estados de modificación que SÍ suman al Monto Vigente. Debe coincidir
-    // exactamente con la misma lista en ModificacionContractualController.
-    // Si cambia la regla de negocio, actualiza ambas.
-    private const ESTADOS_QUE_SUMAN = ['Vigente', 'En trámite'];
+    // Solo las modificaciones ya CONCLUIDAS (aprobadas/firmadas) suman al
+    // Monto Vigente del contrato — las Pendientes todavía no cuentan.
+    // Debe coincidir exactamente con la misma lista en
+    // ModificacionContractualController.
+    private const ESTADOS_QUE_SUMAN = ['Concluido'];
 
     public function index(Proyecto $proyecto)
     {
@@ -198,9 +199,6 @@ class ContratoController extends Controller
     {
         return [
             'monto_vigente' => (float) $contratos->sum('monto_vigente'),
-            // Bug corregido: tenía un espacio en medio del nombre de la
-            // columna ("monto_ejecut  ado_acumulado"), por eso este total
-            // siempre daba 0.
             'monto_ejecutado' => (float) $contratos->sum('monto_ejecutado_acumulado'),
             'saldo_por_pagar' => (float) $contratos->sum('saldo_por_pagar'),
             'anticipo' => (float) $contratos->sum('anticipo'),
