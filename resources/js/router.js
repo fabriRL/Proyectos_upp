@@ -8,10 +8,16 @@ const routes = [
   { path: '/proyectos', name: 'proyectos', component: () => import('@/Pages/ListaProyectos.vue') },
   { path: '/proyectos/nuevo', name: 'nuevo-proyecto', component: () => import('@/Pages/NuevoProyecto.vue') },
   { path: '/proyectos/:codigo/editar', name: 'editar-proyecto', component: () => import('@/Pages/EditarProyecto.vue') },
+
+  // Reportes generales — nivel superior, igual que Dashboard (no dependen
+  // de ningún proyecto específico).
+  { path: '/reportes', name: 'reportes', component: () => import('@/Pages/HistorialReportes.vue') },
+  { path: '/reportes/generar', name: 'generar-reporte', component: () => import('@/Pages/GenerarReporte.vue') },
+
   {
-path: '/proyectos/:codigo',
-component: () => import('@/Pages/ProyectoLayout.vue'),
-children: [
+    path: '/proyectos/:codigo',
+    component: () => import('@/Pages/ProyectoLayout.vue'),
+    children: [
       { path: 'datos', name: 'datos', component: () => import('@/Pages/DatosGenerales.vue') },
       { path: 'cronograma', name: 'cronograma', component: () => import('@/Pages/Cronograma.vue') },
       { path: 'problemas', name: 'problemas', component: () => import('@/Pages/Problemas.vue') },
@@ -20,25 +26,23 @@ children: [
       { path: 'planillas', name: 'planillas', component: () => import('@/Pages/PlanillasPago.vue') },
       { path: 'decretos', name: 'decretos', component: () => import('@/Pages/MontosDecretoSupremo.vue') },
       { path: 'financiero', name: 'financiero', component: () => import('@/Pages/ProgramacionFinanciera.vue') },
-      { path: 'reporte', name: 'reporte', component: () => import('@/Pages/GenerarReporte.vue') },
       { path: 'modificaciones', name: 'modificaciones', component: () => import('@/Pages/ModificacionesContractuales.vue') },
-      
     ],
   },
 ]
 
 const router = createRouter({
-history: createWebHistory(),
-routes,
+  history: createWebHistory(),
+  routes,
 })
 
 router.beforeEach((to) => {
-const { isAuthenticated } = useAuth()
-if (!to.meta.public && !isAuthenticated.value) {
-return { name: 'login' }
+  const { isAuthenticated } = useAuth()
+  if (!to.meta.public && !isAuthenticated.value) {
+    return { name: 'login' }
   }
-if (to.name === 'login' && isAuthenticated.value) {
-return { name: 'dashboard' }
+  if (to.name === 'login' && isAuthenticated.value) {
+    return { name: 'dashboard' }
   }
 })
 

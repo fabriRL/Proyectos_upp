@@ -1,58 +1,251 @@
 <script setup>
-import { repConfig, secciones } from '@/data/proyecto.js'
-import { ref } from 'vue'
-const seleccionadas = ref(new Set(secciones))
-const toggle = (s) => seleccionadas.value.has(s) ? seleccionadas.value.delete(s) : seleccionadas.value.add(s)
+import { ref, onMounted } from 'vue'
+import axios from '@/lib/axios'
+import { useToast } from '@/composables/useToast.js'
+
+const { showToast } = useToast()
+
+const cargando = ref(true)
+const error = ref(null)
+const generandoPdf = ref(false)
+const generandoExcel = ref(false)
+
+const totalProyectos = ref(0)
+const stats = ref({ avance_fisico: 0, avance_financiero: 0 })
+const proyectos = ref([])
+const generadoEn = ref('')
+
+async function cargarReporte() {
+  cargando.value = true
+  error.value = null
+  try {
+    const { data } = await axios.get('/api/reporte-general')
+    totalProyectos.value = data.total_proyectos
+    stats.value = data.stats
+    proyectos.value = data.proyectos
+    generadoEn.value = data.generado_en
+  } catch (e) {
+    error.value = 'No se pudo cargar el reporte general.'
+    console.error(e)
+  } finally {
+    cargando.value = false
+  }
+}
+
+async function descargarPdf() {
+  generandoPdf.value = true
+  try {
+    const { data } = await axios.get('/api/reporte-general/pdf', { responseType: 'blob' })
+    const url = window.URL.createObjectURL(new Blob([data], { type: 'application/pdf' }))
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `reporte-general-proyectos-${new Date().toISOString().slice(0, 10)}.pdf`
+    link.click()
+    window.URL.revokeObjectURL(url)
+  } catch (e) {
+    console.error(e)
+    showToast('No se pudo generar el PDF.', 'error')
+  } finally {
+    generandoPdf.value = false
+  }
+}
+
+async function descargarExcel() {
+  generandoExcel.value = true
+  try {
+    const { data } = await axios.get('/api/reporte-general/excel', { responseType: 'blob' })
+    const url = window.URL.createObjectURL(new Blob([data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }))
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `reporte-general-proyectos-${new Date().toISOString().slice(0, 10)}.xlsx`
+    link.click()
+    window.URL.revokeObjectURL(url)
+  } catch (e) {
+    console.error(e)
+    showToast('No se pudo generar el Excel.', 'error')
+  } finally {
+    generandoExcel.value = false
+  }
+}
+
+function badgeEstado(estado) {
+  if (estado === 'Vencido') return { color: '#f87171', bg: 'rgba(248,113,113,0.12)', border: 'rgba(248,113,113,0.3)' }
+  if (estado === 'Paralizado') return { color: '#fbbf24', bg: 'rgba(251,191,36,0.12)', border: 'rgba(251,191,36,0.3)' }
+  if (estado === 'Concluido') return { color: '#55b8ef', bg: 'rgba(77,179,240,0.12)', border: 'rgba(77,179,240,0.3)' }
+  if (estado === 'Sin contratos') return { color: '#8ea9bf', bg: 'rgba(142,169,191,0.1)', border: 'rgba(142,169,191,0.25)' }
+  return { color: '#00c9a7', bg: 'rgba(0,201,167,0.12)', border: 'rgba(0,201,167,0.3)' } // Vigente
+}
+
+onMounted(cargarReporte)
 </script>
 
 <template>
-  <div class="p-5 max-w-lg">
-    <!-- Configuración -->
-    <div class="rounded-xl overflow-hidden mb-4" style="background-color:#0d1f30; border:1px solid #1e3a52;">
-      <div class="px-5 py-3" style="border-bottom:1px solid #19354d;">
-        <div class="section-title" style="margin-bottom:0;">Configuración del reporte</div>
-      </div>
-      <div class="px-5 py-4 flex flex-col gap-3">
-        <div v-for="[l, v] in repConfig" :key="l">
-          <div class="field-label">{{ l }}</div>
-          <input class="w-full rounded-lg px-3 py-2 text-sm mt-1"
-                 :value="v"
-                 style="background-color:#122130; border:1px solid #1e3a52; color:#d0dde8; outline:none;"
-                 @focus="$event.target.style.borderColor='#00c9a7'"
-                 @blur="$event.target.style.borderColor='#1e3a52'">
+  <div class="p-5 reporte-page">
+
+    <div v-if="cargando" class="text-center py-10" style="color:#8ea9bf;">
+      Cargando reporte general...
+    </div>
+
+    <div v-else-if="error" class="text-center py-10" style="color:#f87171;">
+      {{ error }}
+      <button class="btn btn-sm btn-ghost ml-2" @click="cargarReporte">Reintentar</button>
+    </div>
+
+    <template v-else>
+      <div class="flex justify-between items-center mb-4 flex-wrap gap-3">
+        <div>
+          <div class="section-title" style="margin-bottom:2px;">Reporte General de Proyectos</div>
+          <p style="font-size:.75rem;color:#8ea9bf;margin:0;">
+            {{ totalProyectos }} proyecto(s) — generado el {{ generadoEn }}
+          </p>
+        </div>
+        <div class="flex gap-2">
+          <button class="btn btn-sm" style="background:#122130;border:1px solid #1e3a52;color:#8ea9bf;" @click="descargarExcel" :disabled="generandoExcel">
+            <i class="ti ti-file-spreadsheet"></i> {{ generandoExcel ? 'Generando...' : 'Excel' }}
+          </button>
+          <button class="btn btn-sm" style="background:#00c9a7;color:#04211c;font-weight:600;" @click="descargarPdf" :disabled="generandoPdf">
+            <i class="ti ti-file-type-pdf"></i> {{ generandoPdf ? 'Generando...' : 'Descargar PDF' }}
+          </button>
         </div>
       </div>
-    </div>
 
-    <!-- Secciones -->
-    <div class="rounded-xl overflow-hidden mb-4" style="background-color:#0d1f30; border:1px solid #1e3a52;">
-      <div class="flex justify-between items-center px-5 py-3" style="border-bottom:1px solid #19354d;">
-        <div class="section-title" style="margin-bottom:0;">Secciones a incluir</div>
-        <span class="text-xs" style="color:#8ea9bf;">{{ seleccionadas.size }} / {{ secciones.length }}</span>
+      <!-- Stats generales -->
+      <div class="grid grid-cols-2 gap-3 mb-5">
+        <div class="rounded-xl p-4" style="background-color:#0d1f30; border:1px solid #1e3a52;">
+          <div class="field-label">Avance Físico General</div>
+          <div class="font-bold text-2xl mt-1" style="color:#00c9a7;">{{ stats.avance_fisico }}%</div>
+        </div>
+        <div class="rounded-xl p-4" style="background-color:#0d1f30; border:1px solid #1e3a52;">
+          <div class="field-label">Avance Financiero General</div>
+          <div class="font-bold text-2xl mt-1" style="color:#00c9a7;">{{ stats.avance_financiero }}%</div>
+        </div>
       </div>
-      <div class="px-5 py-4 grid grid-cols-2 gap-2">
-        <label v-for="s in secciones" :key="s" class="flex items-center gap-2 cursor-pointer">
-          <input type="checkbox"
-                 class="checkbox checkbox-xs"
-                 :checked="seleccionadas.has(s)"
-                 @change="toggle(s)"
-                 style="border-color:#1e3a52;">
-          <span class="text-xs" style="color:#c8dae7;">{{ s }}</span>
-        </label>
-      </div>
-    </div>
 
-    <!-- Botones -->
-    <div class="flex gap-3">
-      <button class="flex-1 flex items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-semibold transition-all"
-              style="background-color:#122130; border:1px solid #1e3a52; color:#8ea9bf;"
-              @mouseenter="$event.currentTarget.style.borderColor='#00c9a7'; $event.currentTarget.style.color='#00c9a7'"
-              @mouseleave="$event.currentTarget.style.borderColor='#1e3a52'; $event.currentTarget.style.color='#8ea9bf'">
-        <i class="ti ti-eye" aria-hidden="true"></i> Vista previa
-      </button>
-      <button class="btn btn-primary flex-1">
-        <i class="ti ti-download" aria-hidden="true"></i> Generar reporte V5
-      </button>
-    </div>
+      <!-- Tabla por proyecto -->
+      <div class="rounded-xl overflow-hidden" style="background-color:#0d1f30; border:1px solid #1e3a52;">
+        <div class="px-5 py-3" style="border-bottom:1px solid #19354d;">
+          <div class="section-title" style="margin-bottom:0;">Estado por proyecto</div>
+        </div>
+
+        <div v-if="!proyectos.length" class="text-center py-10" style="color:#8ea9bf;">
+          Todavía no hay proyectos registrados en el sistema.
+        </div>
+
+        <div v-else class="overflow-x-auto">
+          <table class="reporte-table">
+            <thead>
+              <tr>
+                <th>N°</th><th>Código</th><th>Proyecto</th>
+                <th>Avance Físico</th><th>Avance Financiero</th>
+                <th>Días Restantes</th><th>Estado General</th><th>Semáforo</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="p in proyectos" :key="p.codigo">
+                <td class="col-numero">{{ p.n }}</td>
+                <td class="font-mono" style="color:#8ea9bf;">{{ p.codigo }}</td>
+                <td class="text-left" style="color:#e4f0f7;font-weight:600;">{{ p.nombre }}</td>
+                <td class="money">{{ p.avance_fisico }}%</td>
+                <td class="money">{{ p.avance_financiero }}%</td>
+                <td>{{ p.dias_restantes !== null ? p.dias_restantes + ' días' : '—' }}</td>
+                <td>
+                  <span
+                    class="badge-estado"
+                    :style="{ color: badgeEstado(p.estado_general).color, background: badgeEstado(p.estado_general).bg, borderColor: badgeEstado(p.estado_general).border }"
+                  >
+                    {{ p.estado_general }}
+                  </span>
+                </td>
+                <td>
+                  <span class="badge-semaforo" :style="{ color: p.semaforo.color, borderColor: p.semaforo.color }">
+                    {{ p.semaforo.texto }}
+                  </span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </template>
+
   </div>
 </template>
+
+<style scoped>
+.reporte-page { max-width: 1400px; margin: auto; }
+
+.reporte-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .82rem;
+}
+
+.reporte-table thead tr {
+  background: #0a1826;
+  border-bottom: 1px solid #1e3a52;
+}
+
+.reporte-table th {
+  padding: 12px;
+  text-align: center;
+  color: #9cb5c6;
+  font-size: .68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+.reporte-table tbody tr {
+  border-bottom: 1px solid #152a3e;
+  transition: background .15s;
+}
+
+.reporte-table tbody tr:hover {
+  background: rgba(0, 201, 167, .045);
+}
+
+.reporte-table td {
+  padding: 13px 12px;
+  text-align: center;
+  color: #b9cadb;
+}
+
+.reporte-table td.text-left {
+  text-align: left;
+}
+
+.col-numero {
+  font-weight: 800;
+  color: #00c9a7;
+}
+
+.money {
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  color: #e4f0f7 !important;
+  font-weight: 600;
+}
+
+.badge-estado {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid;
+  font-size: .72rem;
+  font-weight: 700;
+}
+
+.badge-semaforo {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 999px;
+  border: 1.5px solid;
+  font-size: .7rem;
+  font-weight: 800;
+  letter-spacing: .02em;
+}
+
+@media (max-width: 700px) {
+  .reporte-page { padding: 14px; }
+  .grid-cols-2 { grid-template-columns: 1fr !important; }
+}
+</style>

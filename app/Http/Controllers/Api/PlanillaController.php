@@ -10,7 +10,6 @@ use Illuminate\Http\Request;
 
 class PlanillaController extends Controller
 {
-    // 1‰ diario de multa por atraso, con tope legal de 10% del monto vigente.
     private const PORCENTAJE_MULTA_DIARIA = 0.001;
     private const TOPE_MULTA = 0.10;
 
@@ -67,16 +66,14 @@ class PlanillaController extends Controller
             'monto_certificado' => 'required|numeric|min:0',
             'retencion_gcc'     => 'nullable|numeric|min:0',
             'dias_atraso'       => 'nullable|integer|min:0',
-            'avance_fisico'     => 'nullable|numeric|min:0|max:100',
-            'importe_pagado_sigep'       => 'nullable|numeric|min:0',
-            'numero_c31'                 => 'nullable|string|max:100',
-            'monto_c31'                  => 'nullable|numeric|min:0',
-            'fecha_aprobacion_fiscal'    => 'nullable|date',
-            'fecha_elaboracion_planilla' => 'nullable|date',
-            'fecha_desembolso'           => 'nullable|date',
+            'importe_pagado_sigep'       => 'required|numeric|min:0',
+            'numero_c31'                 => 'required|string|max:100',
+            'monto_c31'                  => 'required|numeric|min:0',
+            'fecha_aprobacion_fiscal'    => 'required|date',
+            'fecha_elaboracion_planilla' => 'required|date',
+            'fecha_desembolso'           => 'required|date',
         ]);
 
-        // --- Validación de negocio: no se puede certificar más de lo que queda del contrato ---
         $yaEjecutado = $contrato->planillas()->sum('monto_certificado');
         $disponible = $contrato->monto_vigente - $yaEjecutado;
 
@@ -96,10 +93,15 @@ class PlanillaController extends Controller
         $d = $data['monto_certificado'] - $retencion;
 
         // Amortización = D × (% de anticipo efectivo del contrato).
-        // Usa anticipo_porcentaje si el usuario lo indicó explícitamente al
-        // crear/editar el contrato; si no, lo deriva de anticipo/monto_vigente;
-        // sin anticipo en absoluto, da 0 (toda la fila queda en 0).
-        $amortizacion = $d * $this->porcentajeAnticipo($contrato);
+        if (!empty($contrato->anticipo_porcentaje)) {
+            $porcentajeAnticipo = $contrato->anticipo_porcentaje / 100;
+        } elseif ($contrato->monto_vigente > 0 && $contrato->anticipo > 0) {
+            $porcentajeAnticipo = $contrato->anticipo / $contrato->monto_vigente;
+        } else {
+            $porcentajeAnticipo = 0;
+        }
+
+        $amortizacion = $d * $porcentajeAnticipo;
 
         $multa = min(
             $contrato->monto_vigente * self::PORCENTAJE_MULTA_DIARIA * $diasAtraso,
@@ -139,7 +141,6 @@ class PlanillaController extends Controller
             'monto_certificado' => 'sometimes|required|numeric|min:0',
             'retencion_gcc'     => 'nullable|numeric|min:0',
             'dias_atraso'       => 'nullable|integer|min:0',
-            'avance_fisico'     => 'nullable|numeric|min:0|max:100',
             'importe_pagado_sigep'       => 'nullable|numeric|min:0',
             'numero_c31'                 => 'nullable|string|max:100',
             'monto_c31'                  => 'nullable|numeric|min:0',
@@ -148,8 +149,6 @@ class PlanillaController extends Controller
             'fecha_desembolso'           => 'nullable|date',
         ]);
 
-        // El nuevo monto certificado no puede hacer que la suma total del
-        // contrato (excluyendo ESTA planilla) supere el monto vigente.
         $montoCertificadoNuevo = $data['monto_certificado'] ?? (float) $planilla->monto_certificado;
         $yaEjecutadoSinEsta = $contrato->planillas()
             ->where('id_planilla', '!=', $planilla->id_planilla)
@@ -168,10 +167,17 @@ class PlanillaController extends Controller
         $diasAtraso = $data['dias_atraso'] ?? $planilla->dias_atraso ?? 0;
         $retencion  = $data['retencion_gcc'] ?? (float) $planilla->retencion_gcc;
 
-        // D = Importe Ejecutado (A) − Retenciones (B)
         $d = $montoCertificadoNuevo - $retencion;
 
-        $amortizacion = $d * $this->porcentajeAnticipo($contrato);
+        if (!empty($contrato->anticipo_porcentaje)) {
+            $porcentajeAnticipo = $contrato->anticipo_porcentaje / 100;
+        } elseif ($contrato->monto_vigente > 0 && $contrato->anticipo > 0) {
+            $porcentajeAnticipo = $contrato->anticipo / $contrato->monto_vigente;
+        } else {
+            $porcentajeAnticipo = 0;
+        }
+
+        $amortizacion = $d * $porcentajeAnticipo;
 
         $multa = min(
             $contrato->monto_vigente * self::PORCENTAJE_MULTA_DIARIA * $diasAtraso,
@@ -202,20 +208,6 @@ class PlanillaController extends Controller
         return response()->json(['message' => 'Planilla eliminada']);
     }
 
-    // % de anticipo efectivo del contrato: usa anticipo_porcentaje si el
-    // usuario lo indicó explícitamente al crear/editar el contrato; si no,
-    // lo deriva de anticipo/monto_vigente; sin anticipo, da 0.
-    private function porcentajeAnticipo(ContratoProyecto $contrato): float
-    {
-        if (!empty($contrato->anticipo_porcentaje)) {
-            return $contrato->anticipo_porcentaje / 100;
-        }
-        if ($contrato->monto_vigente > 0 && $contrato->anticipo > 0) {
-            return $contrato->anticipo / $contrato->monto_vigente;
-        }
-        return 0;
-    }
-
     private function recalcularContrato(ContratoProyecto $contrato)
     {
         $planillas = $contrato->planillas()->orderBy('numero')->get();
@@ -226,16 +218,13 @@ class PlanillaController extends Controller
         $multas         = $planillas->sum('multa');
 
         // Monto Ejecutado Acumulado = Σ Importe Neto del Trabajo Ejecutado
-        // (D = A − B) de cada planilla — NO es la suma bruta del Importe
-        // del Trabajo Ejecutado (A).
+        // (D = A − B) de cada planilla.
         $ejecutadoNeto = $ejecutadoBruto - $retencion;
 
         $descuentos = $amortizacion + $retencion + $multas;
 
         // Líquido Pagable Acumulado = Monto Ejecutado Acumulado (neto) + Anticipo.
         $liquidoPagableAcumulado = $ejecutadoNeto + $contrato->anticipo;
-
-        $ultimaPlanilla = $planillas->last();
 
         $contrato->update([
             'monto_ejecutado_acumulado' => $ejecutadoNeto,
@@ -245,12 +234,18 @@ class PlanillaController extends Controller
             'liquido_pagable_acumulado' => $liquidoPagableAcumulado,
             'total_descuentos'          => $descuentos,
             // Saldo por Pagar = Monto Vigente del Contrato − Líquido
-            // Pagable Acumulado (no monto_vigente − ejecutado).
+            // Pagable Acumulado.
             'saldo_por_pagar'           => $contrato->monto_vigente - $liquidoPagableAcumulado,
+            // Avance Financiero = (Ejecutado − Amortización + Anticipo) / Vigente.
             'avance_financiero'         => $contrato->monto_vigente > 0
-                ? round(($ejecutadoNeto / $contrato->monto_vigente) * 100, 2)
+                ? round((($ejecutadoNeto - $amortizacion + $contrato->anticipo) / $contrato->monto_vigente) * 100, 2)
                 : 0,
-            'avance_fisico' => $ultimaPlanilla?->avance_fisico ?? $contrato->avance_fisico,
+            // Avance Físico: 100% si el contrato ya tiene fecha real de
+            // entrega definitiva cargada; si no, ejecutado/vigente — NUNCA
+            // un dato manual, ya que el formulario de planillas no lo pide.
+            'avance_fisico' => $contrato->fecha_entrega_definitiva !== null
+                ? 100
+                : ($contrato->monto_vigente > 0 ? round(($ejecutadoNeto / $contrato->monto_vigente) * 100, 2) : 0),
         ]);
     }
 }

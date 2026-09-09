@@ -10,97 +10,183 @@ use Illuminate\Support\Str;
 class DashboardController extends Controller
 {
     /**
-     * Dashboard de seguimiento de un proyecto, con datos reales de la BD.
-     *
-     * NOTA: tu BD todavía está vacía, así que todo esto va a devolver
-     * ceros/arrays vacíos hasta que cargues actividades, problemas y
-     * componentes de prueba. La lógica ya está lista para cuando haya datos.
+     * Dashboard GLOBAL — resumen de TODOS los proyectos del sistema.
+     * Usado por Dashboard.vue (pantalla aparte en el sidebar).
      */
-    public function show(Proyecto $proyecto)
+    public function index()
     {
-        $actividades = $proyecto->actividades()->get();
-        $problemasTodos = $proyecto->problemas()->get();
-        $componentes = $proyecto->componentes()->orderBy('orden')->get();
+        $proyectos = Proyecto::with([
+            'actividades',
+            'problemas',
+            'contratos' => fn ($q) => $q->where('activo', true),
+            'decretoSupremo',
+        ])->get();
 
-        // --- Avance físico: promedio del cumplimiento real de las actividades ---
-        $avanceFisico = $actividades->count()
-            ? round((float) $actividades->avg('porcentaje_cumplimiento_real'), 1)
+        $todasActividades = $proyectos->flatMap->actividades;
+        $todosProblemas = $proyectos->flatMap->problemas;
+        $todosContratos = $proyectos->flatMap->contratos;
+
+        $montoVigenteTotal = (float) $todosContratos->sum('monto_vigente');
+        $ejecutadoTotal = (float) $todosContratos->sum('monto_ejecutado_acumulado');
+        $amortizacionTotal = (float) $todosContratos->sum('amortizacion_acumulada');
+        $anticipoTotal = (float) $todosContratos->sum('anticipo');
+
+        $avanceFisico = $montoVigenteTotal > 0
+            ? round(
+                $todosContratos->sum(fn ($c) => (float) $c->avance_fisico * (float) $c->monto_vigente) / $montoVigenteTotal,
+                1
+            )
             : 0;
 
-        // --- Avance financiero ---
-        // TODO: en el esquema actual no existe una tabla de ejecución/desembolsos
-        // financieros (solo 'monto_decreto', que es el presupuesto planificado).
-        // Queda en 0 hasta que definamos de dónde sale este porcentaje.
-        $avanceFinanciero = 0;
-
-        // --- Días restantes ---
-        $diasRestantes = $proyecto->fecha_conclusion_actual
-            ? max(0, (int) Carbon::now()->diffInDays(Carbon::parse($proyecto->fecha_conclusion_actual), false))
+        $avanceFinanciero = $montoVigenteTotal > 0
+            ? round((($ejecutadoTotal - $amortizacionTotal + $anticipoTotal) / $montoVigenteTotal) * 100, 1)
             : 0;
 
-        // --- Alertas activas: problemas cuyo estado no es "Resuelto" ---
-        $alertasActivas = $problemasTodos->where('estado', '!=', 'Resuelto')->count();
+        $alertasActivas = $todosProblemas->where('estado', '!=', 'Resuelto')->count();
 
-        // --- Avance por contrato (usa componentes_proyecto como "contratos") ---
-        // TODO: 'actividades' no tiene id_componente en el esquema actual, así que
-        // no hay forma de calcular el avance físico/financiero POR componente todavía.
-        // Se listan los componentes reales con 0% hasta resolver esa relación.
-        $contratos = $componentes->values()->map(function ($c, $i) {
-            return [
-                'n' => $i + 1,
-                'short' => Str::limit($c->nombre, 10, ''),
-                'af' => 0,
-                'afin' => 0,
-            ];
-        });
+        $proyectosVencidos = $proyectos->filter(function ($p) {
+            return $p->fecha_conclusion_actual
+                && Carbon::parse($p->fecha_conclusion_actual)->isPast();
+        })->count();
 
-        // --- Indicadores de desempeño ---
-        // Solo calculamos los que sí se pueden derivar del esquema actual.
-        $totalProblemas = $problemasTodos->count();
-        $problemasResueltos = $problemasTodos->where('estado', 'Resuelto')->count();
+        $montoEnRiesgo = (float) $todosContratos
+            ->whereIn('estado_contractual', ['Vencido', 'Paralizado'])
+            ->sum('monto_vigente');
+        $riesgoContractual = $montoVigenteTotal > 0
+            ? round(($montoEnRiesgo / $montoVigenteTotal) * 100, 1)
+            : 0;
+
+        $indicesDesempeno = $todosContratos
+            ->filter(fn ($c) => (float) $c->avance_financiero > 0)
+            ->map(fn ($c) => min(100, ((float) $c->avance_fisico / (float) $c->avance_financiero) * 100));
+        $indiceDesempenoFiscal = $indicesDesempeno->count() > 0
+            ? round($indicesDesempeno->avg(), 1)
+            : 0;
+
+        $proyectosConDecreto = $proyectos->filter(fn ($p) => $p->id_decreto_supremo !== null);
+        $montoDecretosUnicos = (float) $proyectosConDecreto
+            ->pluck('decretoSupremo.monto', 'id_decreto_supremo')
+            ->filter()
+            ->sum();
+        $montoVigenteConDecreto = (float) $proyectosConDecreto->flatMap->contratos->sum('monto_vigente');
+        $utilizacionDecreto = $montoDecretosUnicos > 0
+            ? round(($montoVigenteConDecreto / $montoDecretosUnicos) * 100, 1)
+            : 0;
+
+        $totalProblemas = $todosProblemas->count();
+        $problemasResueltos = $todosProblemas->where('estado', 'Resuelto')->count();
         $gestionProblemas = $totalProblemas
             ? round(($problemasResueltos / $totalProblemas) * 100, 1)
             : 0;
 
+        $sumaReal = (float) $todasActividades->sum('porcentaje_cumplimiento_real');
+        $sumaProgramado = (float) $todasActividades->sum('porcentaje_cumplimiento_programado');
+        $cumplimientoCronograma = $sumaProgramado > 0
+            ? round(($sumaReal / $sumaProgramado) * 100, 1)
+            : 0;
+
         $kpis = [
-            ['label' => 'Cumpl. cronograma', 'v' => $avanceFisico],
+            ['label' => 'Cumpl. cronograma', 'v' => $cumplimientoCronograma],
             ['label' => 'Gestión de problemas', 'v' => $gestionProblemas],
-            ['label' => 'Índice del fiscal', 'v' => 0],       // TODO: falta definir origen del dato
-            ['label' => 'Riesgo contractual', 'v' => 0],      // TODO: falta definir origen del dato
-            ['label' => 'Cumpl. financiero', 'v' => $avanceFinanciero], // TODO: depende de ejecución financiera
-            ['label' => 'Utilización D.S.', 'v' => 0],        // TODO: falta definir origen del dato
+            ['label' => 'Índice del fiscal', 'v' => $indiceDesempenoFiscal],
+            ['label' => 'Riesgo contractual', 'v' => $riesgoContractual],
+            ['label' => 'Cumpl. financiero', 'v' => $avanceFinanciero],
+            ['label' => 'Utilización D.S.', 'v' => $utilizacionDecreto],
         ];
 
-        // --- Problemas / alertas ---
-        $problemas = $problemasTodos->values()->map(function ($p, $i) {
-            $fin = $p->fecha_cierre ? Carbon::parse($p->fecha_cierre) : Carbon::now();
-            $dias = Carbon::parse($p->fecha_registro)->diffInDays($fin);
+        $contratosPorProyecto = $proyectos->values()->map(function ($p, $i) {
+            $contratosProyecto = $p->contratos;
+            $montoVigenteProyecto = (float) $contratosProyecto->sum('monto_vigente');
+
+            $af = $montoVigenteProyecto > 0
+                ? round($contratosProyecto->sum(fn ($c) => (float) $c->avance_fisico * (float) $c->monto_vigente) / $montoVigenteProyecto, 1)
+                : 0;
+
+            $ejecutado = (float) $contratosProyecto->sum('monto_ejecutado_acumulado');
+            $amortizacion = (float) $contratosProyecto->sum('amortizacion_acumulada');
+            $anticipo = (float) $contratosProyecto->sum('anticipo');
+            $afin = $montoVigenteProyecto > 0
+                ? round((($ejecutado - $amortizacion + $anticipo) / $montoVigenteProyecto) * 100, 1)
+                : 0;
 
             return [
                 'n' => $i + 1,
-                'prob' => $p->problema_identificado,
-                'impacto' => $p->impacto,
-                'resp' => $p->responsable,
-                'estado' => $p->estado,
-                'dias' => (int) $dias,
+                'short' => Str::limit($p->nombre, 10, ''),
+                'af' => $af,
+                'afin' => $afin,
             ];
         });
 
+        $problemas = collect();
+        $n = 0;
+        foreach ($proyectos as $p) {
+            foreach ($p->problemas as $prob) {
+                $n++;
+                $fin = $prob->fecha_cierre ? Carbon::parse($prob->fecha_cierre) : Carbon::now();
+                $dias = Carbon::parse($prob->fecha_registro)->diffInDays($fin);
+
+                $problemas->push([
+                    'n' => $n,
+                    'proyecto' => $p->nombre,
+                    'prob' => $prob->problema_identificado,
+                    'impacto' => $prob->impacto,
+                    'resp' => $prob->responsable,
+                    'estado' => $prob->estado,
+                    'dias' => (int) $dias,
+                ]);
+            }
+        }
+
         return response()->json([
-            'proyecto' => [
-                'id' => $proyecto->id_proyecto,
-                'codigo' => $proyecto->codigo,
-                'nombre' => $proyecto->nombre,
+            'total_proyectos' => $proyectos->count(),
+            'stats' => [
+                'avance_fisico' => $avanceFisico,
+                'avance_financiero' => $avanceFinanciero,
+                'proyectos_vencidos' => $proyectosVencidos,
+                'alertas_activas' => $alertasActivas,
             ],
+            'contratos' => $contratosPorProyecto,
+            'kpis' => $kpis,
+            'problemas' => $problemas,
+        ]);
+    }
+
+    /**
+     * Resumen de UN proyecto específico — usado por DatosGenerales.vue
+     * para las tarjetas de arriba (Avance físico / financiero / Días
+     * restantes / Semáforo). Reemplaza al viejo show(Proyecto $proyecto)
+     * que quedó eliminado al convertir el dashboard principal en global.
+     */
+    public function resumenProyecto(Proyecto $proyecto)
+    {
+        $contratos = $proyecto->contratos()->where('activo', true)->get();
+
+        $montoVigenteTotal = (float) $contratos->sum('monto_vigente');
+        $ejecutadoTotal = (float) $contratos->sum('monto_ejecutado_acumulado');
+        $amortizacionTotal = (float) $contratos->sum('amortizacion_acumulada');
+        $anticipoTotal = (float) $contratos->sum('anticipo');
+
+        $avanceFisico = $montoVigenteTotal > 0
+            ? round(
+                $contratos->sum(fn ($c) => (float) $c->avance_fisico * (float) $c->monto_vigente) / $montoVigenteTotal,
+                1
+            )
+            : 0;
+
+        $avanceFinanciero = $montoVigenteTotal > 0
+            ? round((($ejecutadoTotal - $amortizacionTotal + $anticipoTotal) / $montoVigenteTotal) * 100, 1)
+            : 0;
+
+        $diasRestantes = $proyecto->fecha_conclusion_actual
+            ? max(0, (int) Carbon::now()->diffInDays(Carbon::parse($proyecto->fecha_conclusion_actual), false))
+            : 0;
+
+        return response()->json([
             'stats' => [
                 'avance_fisico' => $avanceFisico,
                 'avance_financiero' => $avanceFinanciero,
                 'dias_restantes' => $diasRestantes,
-                'alertas_activas' => $alertasActivas,
             ],
-            'contratos' => $contratos,
-            'kpis' => $kpis,
-            'problemas' => $problemas,
         ]);
     }
 }

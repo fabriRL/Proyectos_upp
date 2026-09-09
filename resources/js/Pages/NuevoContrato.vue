@@ -14,6 +14,8 @@ const form = reactive({
   numero_minuta: '',
   fecha_firma_contrato: '',
   fecha_orden_proceder: '',
+  fecha_entrega_provisional: '',
+  fecha_entrega_definitiva: '',
   monto_vigente: null,
   anticipo: 0,
   anticipo_porcentaje: null,
@@ -113,6 +115,7 @@ function resetForm() {
   Object.assign(form, {
     tipo_contrato: 'Obra', contratista: '',
     numero_minuta: '', fecha_firma_contrato: '', fecha_orden_proceder: '',
+    fecha_entrega_provisional: '', fecha_entrega_definitiva: '',
     monto_vigente: null, anticipo: 0, anticipo_porcentaje: null,
     estado_contractual: 'Vigente', estado_fisico: 'En ejecución',
     fecha_conclusion_prevista: '',
@@ -137,11 +140,9 @@ async function guardar() {
     if (archivoOrdenProceder.value) {
       formData.append('archivo_orden_proceder', archivoOrdenProceder.value)
     }
-
     await axios.post(`/api/proyectos/${props.codigoProyecto}/contratos`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     })
-
     resetForm()
     emit('created')
     emit('close')
@@ -149,15 +150,10 @@ async function guardar() {
     console.error('Error al guardar contrato:', e.response?.data ?? e)
 
     if (e.response?.status === 422) {
-      // Nunca dejamos que errors.value quede undefined — si el backend no
-      // trae la clave 'errors' por algún motivo, cae en un objeto vacío en
-      // vez de romper el template entero.
       errors.value = e.response.data?.errors ?? {}
-
       if (errors.value.contratista) currentStep.value = 1
       else if (errors.value.fecha_orden_proceder || errors.value.archivo_orden_proceder) currentStep.value = 2
       else if (errors.value.monto_vigente) currentStep.value = 3
-
       errorPaso.value = e.response.data?.message ?? 'Revisa los campos marcados en rojo.'
     } else {
       errorPaso.value = 'No se pudo guardar el contrato. Intenta nuevamente.'
@@ -301,6 +297,18 @@ const sFileBtn = { display: 'inline-flex', alignItems: 'center', gap: '8px', pad
                 </div>
 
                 <div :style="sField">
+                  <label :style="sLabel">Fecha de entrega provisional</label>
+                  <input v-model="form.fecha_entrega_provisional" type="date" :style="sInput" />
+                  <div :style="sHint">Opcional. Se llena al hacer la recepción provisional de la obra.</div>
+                </div>
+
+                <div :style="sField">
+                  <label :style="sLabel">Fecha de entrega definitiva</label>
+                  <input v-model="form.fecha_entrega_definitiva" type="date" :style="sInput" />
+                  <div :style="sHint">Al llenarla, el Avance Físico pasa automáticamente a 100%.</div>
+                </div>
+
+                <div :style="sField">
                   <label :style="sLabel">Estado contractual</label>
                   <select v-model="form.estado_contractual" :style="sInput">
                     <option>Vigente</option><option>Vencido</option>
@@ -388,119 +396,23 @@ const sFileBtn = { display: 'inline-flex', alignItems: 'center', gap: '8px', pad
 </template>
 
 <style scoped>
-/* --- Stepper vertical (sidebar) --- */
-.stepper-vertical {
-  display: flex;
-  flex-direction: column;
-  flex-shrink: 0;
-  width: 150px;
-  padding-top: 4px;
-}
-
-.stepper-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  cursor: pointer;
-}
-
-.stepper-track {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  flex-shrink: 0;
-}
-
-.stepper-circle {
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 2px solid #1e3a52;
-  background: #0d1f30;
-  color: #8ea9bf;
-  font-weight: 700;
-  font-size: .78rem;
-  transition: .2s;
-  flex-shrink: 0;
-}
-
-.stepper-row.active .stepper-circle {
-  border-color: #00c9a7;
-  background: rgba(0, 201, 167, .12);
-  color: #00c9a7;
-}
-
-.stepper-row.done .stepper-circle {
-  border-color: #00c9a7;
-  background: #00c9a7;
-  color: #04211c;
-}
-
-.stepper-connector-v {
-  width: 2px;
-  flex: 1;
-  min-height: 28px;
-  background: #1e3a52;
-  margin: 4px 0;
-  transition: .2s;
-}
-
-.stepper-connector-v.done {
-  background: #00c9a7;
-}
-
-.stepper-label-v {
-  padding-top: 6px;
-  font-size: .72rem;
-  color: #8ea9bf;
-  font-weight: 600;
-  line-height: 1.3;
-}
-
-.stepper-row.active .stepper-label-v,
-.stepper-row.done .stepper-label-v {
-  color: #d0dde8;
-}
-
-.paso-error {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 9px 12px;
-  margin-bottom: 14px;
-  border-radius: 7px;
-  background: rgba(248, 113, 113, .1);
-  border: 1px solid rgba(248, 113, 113, .3);
-  color: #fca5a5;
-  font-size: .78rem;
-}
+.stepper-vertical { display: flex; flex-direction: column; flex-shrink: 0; width: 150px; padding-top: 4px; }
+.stepper-row { display: flex; align-items: flex-start; gap: 12px; cursor: pointer; }
+.stepper-track { display: flex; flex-direction: column; align-items: center; flex-shrink: 0; }
+.stepper-circle { width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 2px solid #1e3a52; background: #0d1f30; color: #8ea9bf; font-weight: 700; font-size: .78rem; transition: .2s; flex-shrink: 0; }
+.stepper-row.active .stepper-circle { border-color: #00c9a7; background: rgba(0, 201, 167, .12); color: #00c9a7; }
+.stepper-row.done .stepper-circle { border-color: #00c9a7; background: #00c9a7; color: #04211c; }
+.stepper-connector-v { width: 2px; flex: 1; min-height: 28px; background: #1e3a52; margin: 4px 0; transition: .2s; }
+.stepper-connector-v.done { background: #00c9a7; }
+.stepper-label-v { padding-top: 6px; font-size: .72rem; color: #8ea9bf; font-weight: 600; line-height: 1.3; }
+.stepper-row.active .stepper-label-v, .stepper-row.done .stepper-label-v { color: #d0dde8; }
+.paso-error { display: flex; align-items: center; gap: 8px; padding: 9px 12px; margin-bottom: 14px; border-radius: 7px; background: rgba(248, 113, 113, .1); border: 1px solid rgba(248, 113, 113, .3); color: #fca5a5; font-size: .78rem; }
 
 @media (max-width: 640px) {
-  .stepper-vertical {
-    width: 100%;
-    flex-direction: row;
-    gap: 4px;
-  }
-  .stepper-row {
-    flex-direction: column;
-    align-items: center;
-    flex: 1;
-  }
-  .stepper-track {
-    flex-direction: row;
-  }
-  .stepper-connector-v {
-    width: auto;
-    height: 2px;
-    flex: 1;
-    margin: 14px 4px 0;
-  }
-  .stepper-label-v {
-    text-align: center;
-    padding-top: 4px;
-  }
+  .stepper-vertical { width: 100%; flex-direction: row; gap: 4px; }
+  .stepper-row { flex-direction: column; align-items: center; flex: 1; }
+  .stepper-track { flex-direction: row; }
+  .stepper-connector-v { width: auto; height: 2px; flex: 1; margin: 14px 4px 0; }
+  .stepper-label-v { text-align: center; padding-top: 4px; }
 }
 </style>

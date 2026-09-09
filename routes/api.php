@@ -15,6 +15,8 @@ use App\Http\Controllers\Api\ComponenteController;
 use App\Http\Controllers\Api\ProductoController;
 use App\Http\Controllers\Api\CatalogoDecretoSupremoController;
 use App\Http\Controllers\Api\ProgramacionFinancieraController;
+use App\Http\Controllers\Api\ReporteGeneralController;
+
 
 
 Route::post('/login', [AuthController::class, 'login']);
@@ -23,9 +25,10 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/user', [AuthController::class, 'user']);
     Route::post('/logout', [AuthController::class, 'logout']);
-
+    Route::get('/proyectos/{proyecto}/resumen-general', [DashboardController::class, 'resumenProyecto']);
     // --- Dashboard ---
-    Route::get('/proyectos/{proyecto}/dashboard', [DashboardController::class, 'show']);
+    
+   Route::get('/dashboard', [DashboardController::class, 'index']);
 
     // --- Proyectos (ListaProyectos.vue, DatosGenerales.vue, NuevoProyecto.vue, EditarProyecto.vue) ---
     Route::apiResource('proyectos', ProyectoController::class);
@@ -111,6 +114,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/partidas/{partida}/objetos', [ProgramacionFinancieraController::class, 'storeObjeto']);
     Route::put('/objetos-gasto/{objeto}', [ProgramacionFinancieraController::class, 'updateObjeto']);
     Route::delete('/objetos-gasto/{objeto}', [ProgramacionFinancieraController::class, 'destroyObjeto']);
+    //REPORTES GENERALES DE LOS PROYECTOS
+    Route::get('/reporte-general', [ReporteGeneralController::class, 'index']);
+    Route::get('/reporte-general/pdf', [ReporteGeneralController::class, 'exportarPdf']);
+    Route::get('/reporte-general/excel', [ReporteGeneralController::class, 'exportarExcel']);
+    Route::get('/reportes-generados', [ReporteGeneralController::class, 'historial']);
+    Route::delete('/reportes-generados/{reporte}', [ReporteGeneralController::class, 'destroyHistorial']);
 
 
 

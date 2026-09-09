@@ -11,6 +11,7 @@ const nav = [
   { name: 'flujo', icon: 'ti-sitemap', label: 'Flujo del sistema' },
   { name: 'dashboard', icon: 'ti-layout-dashboard', label: 'Dashboard' },
   { name: 'proyectos', icon: 'ti-building', label: 'Proyectos' },
+  { name: 'reportes', icon: 'ti-report', label: 'Reportes' },
 ]
 
 const nombreProyectoActivo = ref('')

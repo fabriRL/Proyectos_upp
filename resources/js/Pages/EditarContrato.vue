@@ -20,6 +20,8 @@ const form = reactive({
   numero_minuta: props.contrato.numero_minuta ?? '',
   fecha_firma_contrato: soloFecha(props.contrato.fecha_firma_contrato),
   fecha_orden_proceder: soloFecha(props.contrato.fecha_orden_proceder),
+  fecha_entrega_provisional: soloFecha(props.contrato.fecha_entrega_provisional),
+  fecha_entrega_definitiva: soloFecha(props.contrato.fecha_entrega_definitiva),
   monto_vigente: props.contrato.monto_vigente !== null ? Number(props.contrato.monto_vigente) : null,
   anticipo: props.contrato.anticipo !== null ? Number(props.contrato.anticipo) : 0,
   anticipo_porcentaje: props.contrato.anticipo_porcentaje !== null && props.contrato.anticipo_porcentaje !== undefined
@@ -91,7 +93,6 @@ function validarPasoActual() {
       errorPaso.value = 'La fecha de orden de proceder es obligatoria.'
       return false
     }
-    // El PDF solo es obligatorio si el contrato no tenía uno ya guardado.
     if (!tieneArchivoExistente.value && !archivoNuevo.value) {
       errorPaso.value = 'Debes adjuntar el PDF de orden de proceder antes de continuar.'
       return false
@@ -128,8 +129,6 @@ async function guardar() {
     if (archivoNuevo.value) {
       formData.append('archivo_orden_proceder', archivoNuevo.value)
     }
-    // Method spoofing: necesario para que Laravel procese el archivo en
-    // una actualización (PHP no llena $_FILES en peticiones PUT reales).
     formData.append('_method', 'PUT')
 
     await axios.post(`/api/contratos/${props.contrato.id_contrato}`, formData, {
@@ -290,6 +289,18 @@ const sFileBtn = { display: 'inline-flex', alignItems: 'center', gap: '8px', pad
                     :style="sInputCalc"
                   />
                   <div :style="sHint">Desde orden de proceder hasta conclusión prevista.</div>
+                </div>
+
+                <div :style="sField">
+                  <label :style="sLabel">Fecha de entrega provisional</label>
+                  <input v-model="form.fecha_entrega_provisional" type="date" :style="sInput" />
+                  <div :style="sHint">Opcional. Se llena al hacer la recepción provisional de la obra.</div>
+                </div>
+
+                <div :style="sField">
+                  <label :style="sLabel">Fecha de entrega definitiva</label>
+                  <input v-model="form.fecha_entrega_definitiva" type="date" :style="sInput" />
+                  <div :style="sHint">Al llenarla, el Avance Físico pasa automáticamente a 100%.</div>
                 </div>
 
                 <div :style="sField">

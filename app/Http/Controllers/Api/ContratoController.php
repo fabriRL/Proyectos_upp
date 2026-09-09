@@ -86,8 +86,24 @@ class ContratoController extends Controller
         // original, y ambos arrancan iguales.
         $validated['monto_vigente_original'] = $validated['monto_vigente'];
 
+        // Al crear, todavía no hay planillas: ejecutado = 0, amortización = 0.
         $validated['liquido_pagable_acumulado'] = $validated['anticipo'];
         $validated['saldo_por_pagar'] = $validated['monto_vigente'] - $validated['anticipo'];
+
+        // Avance Financiero = (Ejecutado − Amortización + Anticipo) / Vigente × 100.
+        // Al no existir ejecutado ni amortización todavía, se reduce a
+        // anticipo / monto_vigente. Se calcula SIEMPRE aquí — nunca se usa
+        // el valor que venga del formulario, aunque el campo lo acepte.
+        $validated['avance_financiero'] = $validated['monto_vigente'] > 0
+            ? round(($validated['anticipo'] / $validated['monto_vigente']) * 100, 2)
+            : 0;
+
+        // Avance Físico: 100% si ya tiene fecha real de entrega definitiva
+        // cargada (poco común al crear, pero posible); si no, 0% (recién
+        // creado, sin ejecución todavía).
+        $validated['avance_fisico'] = !empty($validated['fecha_entrega_definitiva'])
+            ? 100
+            : 0;
 
         $contrato = ContratoProyecto::create($validated);
 
@@ -154,11 +170,44 @@ class ContratoController extends Controller
             $validated['monto_vigente_original'] = $validated['monto_vigente'] - $sumaModificaciones;
         }
 
-        if ((array_key_exists('anticipo', $validated) || array_key_exists('monto_vigente', $validated))
-            && (float) $contrato->monto_ejecutado_acumulado === 0.0) {
+        // ---------------------------------------------------------------
+        // Recalcula SIEMPRE que cambie el anticipo o el monto vigente —
+        // antes esto solo pasaba si el contrato no tenía ejecución
+        // (monto_ejecutado_acumulado === 0), lo que dejaba desactualizados
+        // Avance Financiero y Saldo por Pagar en contratos con planillas
+        // ya registradas. La fórmula funciona igual de bien en ambos
+        // casos: sin ejecución, ejecutado_neto y amortización valen 0 y
+        // el resultado es el mismo de siempre.
+        // ---------------------------------------------------------------
+        if (array_key_exists('anticipo', $validated) || array_key_exists('monto_vigente', $validated)) {
             $anticipoEfectivo = $validated['anticipo'] ?? $contrato->anticipo;
-            $validated['liquido_pagable_acumulado'] = $anticipoEfectivo;
-            $validated['saldo_por_pagar'] = $montoVigenteEfectivo - $anticipoEfectivo;
+            $ejecutadoNeto = (float) $contrato->monto_ejecutado_acumulado;
+            $amortizacionAcumulada = (float) $contrato->amortizacion_acumulada;
+
+            $liquidoPagableAcumulado = $ejecutadoNeto + $anticipoEfectivo;
+
+            $validated['liquido_pagable_acumulado'] = round($liquidoPagableAcumulado, 2);
+            $validated['saldo_por_pagar'] = round($montoVigenteEfectivo - $liquidoPagableAcumulado, 2);
+
+            // Avance Financiero = (Ejecutado − Amortización + Anticipo) / Vigente × 100
+            $validated['avance_financiero'] = $montoVigenteEfectivo > 0
+                ? round((($ejecutadoNeto - $amortizacionAcumulada + $anticipoEfectivo) / $montoVigenteEfectivo) * 100, 2)
+                : 0;
+        }
+
+        // Avance Físico: 100% si tiene fecha real de entrega definitiva
+        // (nueva o ya existente); si no, ejecutado/vigente.
+        if (array_key_exists('monto_vigente', $validated) || array_key_exists('fecha_entrega_definitiva', $validated)) {
+            $montoVigenteParaFisico = $validated['monto_vigente'] ?? $contrato->monto_vigente;
+            $fechaEntregaDefEfectiva = array_key_exists('fecha_entrega_definitiva', $validated)
+                ? $validated['fecha_entrega_definitiva']
+                : $contrato->fecha_entrega_definitiva;
+
+            $validated['avance_fisico'] = !empty($fechaEntregaDefEfectiva)
+                ? 100
+                : ($montoVigenteParaFisico > 0
+                    ? round(((float) $contrato->monto_ejecutado_acumulado / $montoVigenteParaFisico) * 100, 2)
+                    : 0);
         }
 
         if ($request->hasFile('archivo_orden_proceder')) {

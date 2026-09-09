@@ -15,11 +15,12 @@ async function cargarDatos() {
   error.value = ''
   try {
     const codigo = route.params.codigo
-
+    
     const [resProyecto, resDashboard] = await Promise.all([
       axios.get(`/api/proyectos/${codigo}`),
-      axios.get(`/api/proyectos/${codigo}/dashboard`),
+      axios.get(`/api/proyectos/${codigo}/resumen-general`),
     ])
+
 
     proyecto.value = resProyecto.data
     dashboard.value = resDashboard.data
