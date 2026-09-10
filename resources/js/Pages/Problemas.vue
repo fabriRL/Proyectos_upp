@@ -151,12 +151,17 @@ watch(identificador, fetchProblemas)
     />
 
     <EditarProblema
-      v-if="problemaEditando"
+       v-if="problemaEditando"
+      :key="problemaEditando.id_problema"
       :problema="problemaEditando"
+      :proyecto-id="identificador"
       :guardando="guardando"
       @actualizar="onActualizar"
       @cerrar="problemaEditando = null"
     />
+      
+
+   
   </div>
 </template>
 <style scoped>

@@ -18,6 +18,7 @@ class Problema extends Model
 
     protected $fillable = [
         'id_proyecto',
+        'id_actividad',
         'fecha_registro',
         'problema_identificado',
         'impacto',
@@ -48,5 +49,11 @@ class Problema extends Model
     public function proyecto()
     {
         return $this->belongsTo(Proyecto::class, 'id_proyecto', 'id_proyecto');
+    }
+
+    // Actividad del cronograma que este problema afecta (opcional).
+    public function actividad()
+    {
+        return $this->belongsTo(Actividad::class, 'id_actividad', 'id_actividad');
     }
 }

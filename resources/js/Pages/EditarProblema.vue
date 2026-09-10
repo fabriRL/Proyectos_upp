@@ -1,15 +1,12 @@
 <script setup>
-import { ref, computed } from 'vue'
-import { useToast } from '@/composables/useToast.js'
-const { showToast } = useToast()
-
+import { ref, computed, onMounted } from 'vue'
+import axios from 'axios'
 
 const props = defineProps({
   problema: { type: Object, required: true },
+  proyectoId: { type: [Number, String], required: true },
   guardando: { type: Boolean, default: false },
 })
-
-
 const emit = defineEmits(['actualizar', 'cerrar'])
 
 const form = ref({
@@ -19,8 +16,20 @@ const form = ref({
   solucion_propuesta: props.problema.solucion_propuesta ?? '',
   responsable: props.problema.responsable ?? '',
   estado: props.problema.estado ?? 'Pendiente',
+  id_actividad: props.problema.id_actividad ?? '',
 })
 const errorFormulario = ref(null)
+
+const actividades = ref([])
+async function cargarActividades() {
+  try {
+    const { data } = await axios.get(`/api/proyectos/${props.proyectoId}/actividades`)
+    actividades.value = data
+  } catch (e) {
+    console.error('No se pudieron cargar las actividades del cronograma:', e)
+  }
+}
+onMounted(cargarActividades)
 
 // --- Documento de resolución (PDF) ---
 const archivoResolucion = ref(null)
@@ -72,8 +81,6 @@ function guardar() {
   if (archivoResolucion.value) {
     formData.append('archivo_resolucion', archivoResolucion.value)
   }
-  // Method spoofing: necesario para que Laravel procese el archivo en una
-  // actualización (PHP no llena $_FILES en peticiones PUT reales).
   formData.append('_method', 'PUT')
 
   emit('actualizar', props.problema.id_problema, formData)
@@ -83,20 +90,6 @@ function cerrar() {
   if (props.guardando) return
   emit('cerrar')
 }
-
-async function onActualizar(id, payload) {
-  guardando.value = true
-  try {
-    await actualizarProblema(id, payload)
-    problemaEditando.value = null
-    showToast('Problema actualizado correctamente.', 'success')
-  } catch (e) {
-    error.value = 'No se pudo guardar el problema. Revisa los campos.'
-  } finally {
-    guardando.value = false
-  }
-}
-
 </script>
 <template>
   <div class="modal-overlay" @click.self="cerrar">
@@ -146,6 +139,21 @@ async function onActualizar(id, payload) {
               <i class="ti ti-alert-circle"></i>
               <textarea v-model="form.problema_identificado" rows="2" placeholder="Describe el problema..." required></textarea>
             </div>
+          </div>
+          <div class="form-group form-full">
+            <label>Actividad afectada del cronograma</label>
+            <div class="input-wrap">
+              <i class="ti ti-timeline-event"></i>
+              <select v-model="form.id_actividad">
+                <option value="">— Ninguna (opcional) —</option>
+                <option v-for="a in actividades" :key="a.id_actividad" :value="a.id_actividad">
+                  N°{{ a.numero }} — {{ a.actividad }}
+                </option>
+              </select>
+            </div>
+            <p style="margin:4px 0 0;color:#647a8e;font-size:.64rem;">
+              Si eliges una actividad, esta pasará a "Retrasada" automáticamente mientras el problema siga abierto.
+            </p>
           </div>
           <div class="form-group">
             <label>Impacto</label>

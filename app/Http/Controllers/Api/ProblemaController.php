@@ -3,10 +3,12 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Actividad;
 use App\Models\Problema;
 use App\Models\Proyecto;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 
 class ProblemaController extends Controller
 {
@@ -14,6 +16,7 @@ class ProblemaController extends Controller
     public function index(Proyecto $proyecto)
     {
         $problemas = $proyecto->problemas()
+            ->with('actividad:id_actividad,numero,actividad')
             ->orderBy('fecha_registro', 'desc')
             ->get();
 
@@ -32,12 +35,14 @@ class ProblemaController extends Controller
             'estado' => 'nullable|string|max:50',
             'fecha_cierre' => 'nullable|date|after_or_equal:fecha_registro',
             'archivo_resolucion' => 'nullable|file|mimes:pdf|max:10240',
+            'id_actividad' => [
+                'nullable',
+                'integer',
+                Rule::exists('actividades', 'id_actividad')
+                    ->where(fn ($q) => $q->where('id_proyecto', $proyecto->id_proyecto)),
+            ],
         ]);
 
-        // Regla de negocio: no se puede marcar "Resuelto" sin el PDF que lo
-        // respalde. Se valida en el servidor, no solo bloqueando la opción
-        // en el frontend — así nadie puede saltárselo llamando a la API
-        // directo o editando el HTML.
         if (($validado['estado'] ?? null) === 'Resuelto' && !$request->hasFile('archivo_resolucion')) {
             return response()->json([
                 'message' => 'No se puede marcar como Resuelto sin adjuntar el documento de resolución.',
@@ -58,7 +63,9 @@ class ProblemaController extends Controller
 
         $problema = Problema::create($validado);
 
-        return response()->json($problema, 201);
+        $this->sincronizarEstadoActividad($problema->id_actividad);
+
+        return response()->json($problema->load('actividad:id_actividad,numero,actividad'), 201);
     }
 
     // PUT/PATCH /api/problemas/{problema}
@@ -73,14 +80,15 @@ class ProblemaController extends Controller
             'estado' => 'nullable|string|max:50',
             'fecha_cierre' => 'nullable|date',
             'archivo_resolucion' => 'nullable|file|mimes:pdf|max:10240',
+            'id_actividad' => [
+                'nullable',
+                'integer',
+                Rule::exists('actividades', 'id_actividad')
+                    ->where(fn ($q) => $q->where('id_proyecto', $problema->id_proyecto)),
+            ],
         ]);
 
-        // Estado final después de este update (si no viene "estado" en el
-        // request, se queda el que ya tenía el problema).
         $estadoFinal = $validado['estado'] ?? $problema->estado;
-
-        // ¿Ya existe un PDF, o se está subiendo uno nuevo en este mismo
-        // request? Cualquiera de las dos vale para poder marcar Resuelto.
         $tendraArchivo = $problema->archivo_resolucion_path || $request->hasFile('archivo_resolucion');
 
         if ($estadoFinal === 'Resuelto' && !$tendraArchivo) {
@@ -93,8 +101,6 @@ class ProblemaController extends Controller
         }
 
         if ($request->hasFile('archivo_resolucion')) {
-            // Si ya había un PDF anterior, se borra del disco antes de
-            // guardar el nuevo — no dejamos archivos huérfanos.
             if ($problema->archivo_resolucion_path) {
                 Storage::disk('public')->delete($problema->archivo_resolucion_path);
             }
@@ -105,9 +111,18 @@ class ProblemaController extends Controller
 
         $validado['id_usuario_actualizador'] = $request->user()->id_usuario ?? $request->user()->id;
 
+        // Guarda la actividad de ANTES del update, por si el problema se
+        // reasignó a otra actividad distinta — hay que resincronizar ambas.
+        $idActividadAnterior = $problema->id_actividad;
+
         $problema->update($validado);
 
-        return response()->json($problema);
+        $this->sincronizarEstadoActividad($idActividadAnterior);
+        if ($problema->id_actividad !== $idActividadAnterior) {
+            $this->sincronizarEstadoActividad($problema->id_actividad);
+        }
+
+        return response()->json($problema->load('actividad:id_actividad,numero,actividad'));
     }
 
     // DELETE /api/problemas/{problema}
@@ -117,8 +132,55 @@ class ProblemaController extends Controller
             Storage::disk('public')->delete($problema->archivo_resolucion_path);
         }
 
+        $idActividad = $problema->id_actividad;
+
         $problema->delete();
 
+        $this->sincronizarEstadoActividad($idActividad);
+
         return response()->json(null, 204);
+    }
+
+    // Recalcula desde cero el Estado de una actividad, según si TODAVÍA
+    // tiene algún problema abierto (estado != 'Resuelto') apuntándole.
+    // Se recalcula completo cada vez (no incrementalmente) para que nunca
+    // se desincronice, sin importar el orden en que se creen/resuelvan/
+    // borren los problemas que la afectan — mismo criterio que ya usamos
+    // en recalcularContrato() de Planillas.
+    private function sincronizarEstadoActividad(?int $idActividad): void
+    {
+        if (!$idActividad) {
+            return;
+        }
+
+        $actividad = Actividad::find($idActividad);
+        if (!$actividad) {
+            return;
+        }
+
+        $tieneProblemasAbiertos = Problema::where('id_actividad', $idActividad)
+            ->where('estado', '!=', 'Resuelto')
+            ->exists();
+
+        if ($tieneProblemasAbiertos) {
+            // Solo se guarda el estado previo la PRIMERA vez que se fuerza
+            // a "Retrasada" — si ya estaba retrasada por otro problema, no
+            // se sobreescribe el valor guardado.
+            if ($actividad->estado !== 'Retrasada') {
+                $actividad->update([
+                    'estado_previo_retraso' => $actividad->estado,
+                    'estado' => 'Retrasada',
+                ]);
+            }
+        } else {
+            // Ya no queda ningún problema abierto afectándola — se
+            // devuelve al estado que tenía antes de forzarla.
+            if ($actividad->estado === 'Retrasada' && $actividad->estado_previo_retraso) {
+                $actividad->update([
+                    'estado' => $actividad->estado_previo_retraso,
+                    'estado_previo_retraso' => null,
+                ]);
+            }
+        }
     }
 }

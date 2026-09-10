@@ -25,6 +25,7 @@ class Proyecto extends Model
         'fuente_financiamiento',
         'norma_financiador',
         'monto_decreto',
+        'id_decreto_supremo',
         'entidad_ejecutora',
         'componentes_lineas_descripcion',
         'fecha_inicio_contractual',
@@ -51,7 +52,7 @@ class Proyecto extends Model
 
     public function ubicaciones()
     {
-    return $this->hasMany(UbicacionProyecto::class, 'id_proyecto', 'id_proyecto');
+        return $this->hasMany(UbicacionProyecto::class, 'id_proyecto', 'id_proyecto');
     }
 
     public function beneficiarios()
@@ -73,21 +74,24 @@ class Proyecto extends Model
     {
         return $this->hasMany(ComponenteProyecto::class, 'id_proyecto', 'id_proyecto');
     }
+
     public function contratos()
     {
-    return $this->hasMany(ContratoProyecto::class, 'id_proyecto', 'id_proyecto');
+        return $this->hasMany(ContratoProyecto::class, 'id_proyecto', 'id_proyecto');
     }
+
     public function decretosSupremos()
     {
-    return $this->hasMany(DecretoSupremoProyecto::class, 'id_proyecto', 'id_proyecto');
+        return $this->hasMany(DecretoSupremoProyecto::class, 'id_proyecto', 'id_proyecto');
     }
-   public function decretoSupremo()
+
+    public function decretoSupremo()
     {
-    return $this->belongsTo(DecretoSupremo::class, 'id_decreto_supremo', 'id_decreto_supremo');
+        return $this->belongsTo(DecretoSupremo::class, 'id_decreto_supremo', 'id_decreto_supremo');
     }
+
     public function partidasPresupuestarias()
     {
-    return $this->hasMany(PartidaPresupuestaria::class, 'id_proyecto', 'id_proyecto');
+        return $this->hasMany(PartidaPresupuestaria::class, 'id_proyecto', 'id_proyecto');
     }
-   
 }

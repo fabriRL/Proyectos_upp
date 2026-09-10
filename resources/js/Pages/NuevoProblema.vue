@@ -1,10 +1,15 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
+import axios from 'axios'
+
+
+const emit = defineEmits(['crear', 'cerrar'])
+
 const props = defineProps({
+
   proyectoId: { type: [Number, String], required: true },
   guardando: { type: Boolean, default: false },
 })
-const emit = defineEmits(['crear', 'cerrar'])
 
 const form = ref({
   fecha_registro: new Date().toISOString().slice(0, 10),
@@ -13,8 +18,20 @@ const form = ref({
   solucion_propuesta: '',
   responsable: '',
   estado: 'Pendiente',
+  id_actividad: '',
 })
 const errorFormulario = ref(null)
+
+const actividades = ref([])
+async function cargarActividades() {
+  try {
+    const { data } = await axios.get(`/api/proyectos/${props.proyectoId}/actividades`)
+    actividades.value = data
+  } catch (e) {
+    console.error('No se pudieron cargar las actividades del cronograma:', e)
+  }
+}
+onMounted(cargarActividades)
 
 function validar() {
   errorFormulario.value = null
@@ -94,6 +111,21 @@ function cerrar() {
               <i class="ti ti-alert-circle"></i>
               <textarea v-model="form.problema_identificado" rows="2" placeholder="Describe el problema..." required></textarea>
             </div>
+          </div>
+          <div class="form-group form-full">
+            <label>Actividad afectada del cronograma</label>
+            <div class="input-wrap">
+              <i class="ti ti-timeline-event"></i>
+              <select v-model="form.id_actividad">
+                <option value="">— Ninguna (opcional) —</option>
+                <option v-for="a in actividades" :key="a.id_actividad" :value="a.id_actividad">
+                  N°{{ a.numero }} — {{ a.actividad }}
+                </option>
+              </select>
+            </div>
+            <p style="margin:4px 0 0;color:#647a8e;font-size:.64rem;">
+              Si eliges una actividad, esta pasará a "Retrasada" automáticamente mientras el problema siga abierto.
+            </p>
           </div>
           <div class="form-group">
             <label>Impacto</label>
