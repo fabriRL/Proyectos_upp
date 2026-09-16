@@ -143,6 +143,7 @@ const datosList = computed(() => {
     ['Código del proyecto', p.codigo, true],
     ['Número SISIN Web', p.numero_sisin_web || '—', true],
     ['Nombre del proyecto', p.nombre, false],
+    ['Estado del proyecto', p.estado || '—', false],
     ['Entidad ejecutora', p.entidad_ejecutora || '—', false],
     ['Fiscal general', p.fiscal_general || '—', false],
     ['Fuente de financiamiento', p.fuente_financiamiento || '—', false],
@@ -244,6 +245,16 @@ function formatearCantidadProducto(producto) {
             <div class="px-4 py-3" style="border-bottom:1px solid #19354d;"><div class="section-title" style="margin-bottom:0;">Plazos del proyecto</div></div>
             <div class="px-4 py-2"><div v-for="[l, v] in plazosList" :key="l" class="flex justify-between py-2" style="border-bottom:1px solid #152a3e;"><span class="text-xs" style="color:#8ea9bf;">{{ l }}</span><span class="font-mono text-xs" style="color:#d4e4f0;">{{ v }}</span></div></div>
           </div>
+        </div>
+      </div>
+
+      <!-- OBSERVACIONES -->
+      <div v-if="proyecto.observaciones" class="rounded-xl overflow-hidden mt-4" style="background-color:#0d1f30; border:1px solid #1e3a52;">
+        <div class="px-5 py-3" style="border-bottom:1px solid #19354d;">
+          <div class="section-title" style="margin-bottom:0;">Observaciones</div>
+        </div>
+        <div class="px-5 py-4">
+          <p class="capacidades-text">{{ proyecto.observaciones }}</p>
         </div>
       </div>
 

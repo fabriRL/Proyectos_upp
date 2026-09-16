@@ -27,6 +27,8 @@ const form = ref({
   plazo_contractual_inicial_dias: '',
   fecha_conclusion_actual: '',
   plazo_contractual_actual_dias: '',
+  estado: '',
+  observaciones: '',
 })
 
 const cargando = ref(true)
@@ -106,8 +108,10 @@ function eliminarProducto(indexComponente, indexProducto) {
 }
 
 // --- Ubicaciones (una o más) ---
+const MAX_UBICACIONES = 3
 const ubicaciones = ref([])
 function agregarUbicacion() {
+  if (ubicaciones.value.length >= MAX_UBICACIONES) return
   ubicaciones.value.push({
     departamento: '', provincia: '', municipio: '', comunidad_localidad: '',
     coordenada_norte: '', coordenada_este: '', zona_utm: '',
@@ -194,6 +198,8 @@ async function cargarProyecto() {
       plazo_contractual_inicial_dias: data.plazo_contractual_inicial_dias ?? '',
       fecha_conclusion_actual: soloFecha(data.fecha_conclusion_actual),
       plazo_contractual_actual_dias: data.plazo_contractual_actual_dias ?? '',
+      estado: data.estado ?? '',
+      observaciones: data.observaciones ?? '',
     }
 
     // Precarga el Decreto Supremo que ya tenía el proyecto.
@@ -638,17 +644,29 @@ onMounted(async () => {
               <button
                 type="button"
                 @click="agregarUbicacion"
-                :disabled="guardando"
-                style="flex-shrink:0;display:inline-flex;align-items:center;gap:6px;padding:7px 12px;border:none;border-radius:7px;background:#00c9a7;color:#04211c;font-weight:700;font-size:.72rem;cursor:pointer;"
+                :disabled="guardando || ubicaciones.length >= MAX_UBICACIONES"
+                :style="{
+                  flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: '6px',
+                  padding: '7px 12px', border: 'none', borderRadius: '7px', fontWeight: '700',
+                  fontSize: '.72rem',
+                  background: ubicaciones.length >= MAX_UBICACIONES ? '#1e3a52' : '#00c9a7',
+                  color: ubicaciones.length >= MAX_UBICACIONES ? '#647a8e' : '#04211c',
+                  cursor: ubicaciones.length >= MAX_UBICACIONES ? 'not-allowed' : 'pointer',
+                }"
               >
-                <i class="ti ti-plus"></i> Ubicación
+                <i class="ti ti-plus"></i> Ubicación ({{ ubicaciones.length }}/{{ MAX_UBICACIONES }})
               </button>
+                      
             </div>
 
             <div class="card-body">
               <div v-if="!ubicaciones.length" style="text-align:center;padding:20px 0;color:#647a8e;font-size:.78rem;">
                 Sin ubicaciones agregadas todavía.
               </div>
+              <div v-if="ubicaciones.length >= MAX_UBICACIONES" style="text-align:center;padding:10px 0 4px;color:#fbbf24;font-size:.7rem;">
+                <i class="ti ti-info-circle"></i> Alcanzaste el máximo de {{ MAX_UBICACIONES }} ubicaciones para este proyecto.
+              </div>
+              
 
               <div
                 v-for="(ubi, iUbi) in ubicaciones"
@@ -811,6 +829,36 @@ onMounted(async () => {
                       <span v-if="cronogramaVencido" class="stat-suffix">(vencido)</span>
                     </div>
                   </div>
+                </div>
+              </div>
+
+              <!-- ESTADO Y OBSERVACIONES DEL PROYECTO -->
+              <div class="estado-obs-section">
+                <div class="estado-obs-header">
+                  <span><i class="ti ti-notes"></i> Estado y observaciones</span>
+                </div>
+                <div class="field">
+                  <label>Estado del proyecto</label>
+                  <input
+                    v-model="form.estado"
+                    type="text"
+                    placeholder="Ej. En ejecución, Paralizado, Concluido..."
+                    :disabled="guardando"
+                    maxlength="100"
+                  />
+                  <span v-if="erroresCampo.estado" class="field-error">{{ erroresCampo.estado[0] }}</span>
+                </div>
+
+                <div class="field">
+                  <label>Observaciones</label>
+                  <textarea
+                    v-model="form.observaciones"
+                    :disabled="guardando"
+                    rows="3"
+                    class="textarea-plain"
+                    placeholder="Observaciones generales del proyecto..."
+                  ></textarea>
+                  <span v-if="erroresCampo.observaciones" class="field-error">{{ erroresCampo.observaciones[0] }}</span>
                 </div>
               </div>
             </div>
@@ -1335,6 +1383,51 @@ onMounted(async () => {
   font-weight: 600;
   vertical-align: middle;
 }
+
+/* --- Estado y observaciones --- */
+.estado-obs-section {
+  border-top: 1px solid #1e3a52;
+  padding-top: 16px;
+  margin-top: 16px;
+  display: grid;
+  gap: 14px;
+}
+
+.estado-obs-header {
+  color: #8ea9bf;
+  font-size: .74rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+.estado-obs-header i {
+  margin-right: 4px;
+}
+
+.field textarea.textarea-plain {
+  width: 100%;
+  box-sizing: border-box;
+  background: #0a1624;
+  border: 1px solid #1e3a52;
+  border-radius: 7px;
+  padding: 9px 11px;
+  color: #dcebf5;
+  font-size: .85rem;
+  font-family: inherit;
+  line-height: 1.5;
+  resize: vertical;
+  outline: 0;
+  transition: .15s;
+}
+
+.field textarea.textarea-plain:focus {
+  border-color: #00c9a7;
+  box-shadow: 0 0 0 3px rgba(0, 201, 167, .1);
+}
+
+.field textarea.textarea-plain:disabled { opacity: .85; cursor: not-allowed; }
+.field textarea.textarea-plain::placeholder { color: #4d6478; }
 
 .form-actions {
   display: flex;

@@ -16,7 +16,7 @@ use App\Http\Controllers\Api\ProductoController;
 use App\Http\Controllers\Api\CatalogoDecretoSupremoController;
 use App\Http\Controllers\Api\ProgramacionFinancieraController;
 use App\Http\Controllers\Api\ReporteGeneralController;
-
+use App\Http\Controllers\Api\RolController;
 
 
 Route::post('/login', [AuthController::class, 'login']);
@@ -120,6 +120,15 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/reporte-general/excel', [ReporteGeneralController::class, 'exportarExcel']);
     Route::get('/reportes-generados', [ReporteGeneralController::class, 'historial']);
     Route::delete('/reportes-generados/{reporte}', [ReporteGeneralController::class, 'destroyHistorial']);
+
+    Route::middleware('permiso:roles.gestionar')->group(function () {
+    Route::get('/roles', [RolController::class, 'index']);
+    Route::get('/permisos', [RolController::class, 'permisosDisponibles']);
+    Route::post('/roles', [RolController::class, 'store']);
+    Route::put('/roles/{rol}', [RolController::class, 'update']);
+    Route::delete('/roles/{rol}', [RolController::class, 'destroy']);
+    Route::put('/roles/{rol}/permisos', [RolController::class, 'actualizarPermisos']);
+    });
 
 
 

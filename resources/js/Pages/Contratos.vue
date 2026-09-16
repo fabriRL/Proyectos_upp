@@ -134,7 +134,13 @@ const afinPromedio = computed(() =>
         <div class="px-5 py-3 flex justify-between items-center gap-3" style="border-bottom:1px solid #19354d;">
           <div>
             <div class="section-title" style="margin-bottom:0;">Resumen de gestión del proyecto por contrato</div>
-            <p class="table-subtitle">Ejecución financiera, retenciones, saldos e hitos de recepción por paquete. Solo los contratos activos suman al resumen financiero.</p>
+            <p class="table-subtitle">
+              Ejecución financiera, retenciones, saldos e hitos de recepción por paquete. Solo los contratos activos suman al resumen financiero.
+            </p>
+            <p class="table-legend">
+              <i class="ti ti-info-circle"></i>
+              Multas, Retención G.C.C. y Total Descuentos se calculan automáticamente a partir de las Planillas registradas — no se editan directamente aquí.
+            </p>
           </div>
           <div class="flex gap-2">
             <button
@@ -156,31 +162,37 @@ const afinPromedio = computed(() =>
           <table class="contracts-table">
             <thead>
               <tr>
-                <th class="col-acciones-th">Acciones</th>
-                <th>N°</th>
-                <th>Contratista / supervisión</th>
-                <th>Tipo de contrato</th>
-                <th>N° Minuta</th>
-                <th>Fecha Firma</th>
-                <th>Orden de Proceder</th>
-                <th>PDF</th>
-                <th>Plazo (días)</th>
-                <th>Monto vigente</th>
-                <th>Anticipo</th>
-                <th>Amort. Acumulada</th>
-                <th>Monto Ejecutado</th>
-                <th>Líquido Pagable</th>
-                <th>Multas</th>
-                <th>Retención G.C.C.</th>
-                <th>Total Descuentos</th>
-                <th>Saldo por Pagar</th>
-                <th>Estado Contractual</th>
-                <th>Conclusión Prevista</th>
-                <th>Entrega Provisional</th>
-                <th>Entrega Definitiva</th>
-                <th>Avance Físico</th>
-                <th>Avance Financiero</th>
-                <th>Estado Físico</th>
+                <th class="col-acciones-th" rowspan="2">Acciones</th>
+                <th rowspan="2">N°</th>
+                <th rowspan="2">Contratista / supervisión</th>
+                <th rowspan="2">Tipo de contrato</th>
+                <th rowspan="2">N° Minuta</th>
+                <th rowspan="2">Fecha Firma</th>
+                <th rowspan="2">Orden de Proceder</th>
+                <th rowspan="2">PDF</th>
+                <th rowspan="2">Plazo (días)</th>
+                <th rowspan="2">Monto vigente</th>
+                <th rowspan="2">Anticipo</th>
+                <th rowspan="2">Amort. Acumulada</th>
+                <th rowspan="2">Monto Ejecutado</th>
+                <th rowspan="2">Líquido Pagable</th>
+                <th colspan="3" class="group-header-planillas">
+                  Retenciones y Descuentos
+                  <span class="group-tag">Desde Planillas</span>
+                </th>
+                <th rowspan="2">Saldo por Pagar</th>
+                <th rowspan="2">Estado Contractual</th>
+                <th rowspan="2">Conclusión Prevista</th>
+                <th rowspan="2">Entrega Provisional</th>
+                <th rowspan="2">Entrega Definitiva</th>
+                <th rowspan="2">Avance Físico</th>
+                <th rowspan="2">Avance Financiero</th>
+                <th rowspan="2">Estado Físico</th>
+              </tr>
+              <tr>
+                <th class="sub-header-planillas">Multas (Bs)</th>
+                <th class="sub-header-planillas">Retención G.C.C. (Bs)</th>
+                <th class="sub-header-planillas">Total Descuentos (Bs)</th>
               </tr>
             </thead>
             <tbody>
@@ -215,10 +227,14 @@ const afinPromedio = computed(() =>
                 </td>
                 <td class="col-plazo">{{ c.plazoDias !== null ? c.plazoDias + ' días' : '—' }}</td>
 
-                <td v-for="key in ['monto','anticipo','amortizacion','ejecutado','liquido','multas','retencion']" :key="key" class="money">
+                <td v-for="key in ['monto','anticipo','amortizacion','ejecutado','liquido']" :key="key" class="money">
                   {{ fmtBs(c[key]) }}
                 </td>
-                <td class="money">{{ fmtBs(c.descuentos) }}</td>
+
+                <td class="money col-planilla">{{ fmtBs(c.multas) }}</td>
+                <td class="money col-planilla">{{ fmtBs(c.retencion) }}</td>
+                <td class="money col-planilla">{{ fmtBs(c.descuentos) }}</td>
+
                 <td class="money" :class="{ negative: c.saldo < 0 }">{{ fmtBs(c.saldo) }}</td>
 
                 <td><span :class="badgeClass(c.contractual)">{{ c.contractual }}</span></td>
@@ -239,10 +255,12 @@ const afinPromedio = computed(() =>
 
               <tr class="total-row">
                 <td colspan="9">TOTAL</td>
-                <td v-for="key in ['monto','anticipo','amortizacion','ejecutado','liquido','multas','retencion']" :key="key" class="money">
+                <td v-for="key in ['monto','anticipo','amortizacion','ejecutado','liquido']" :key="key" class="money">
                   {{ fmtBs(sum(key)) }}
                 </td>
-                <td class="money">{{ fmtBs(sum('descuentos')) }}</td>
+                <td class="money col-planilla">{{ fmtBs(sum('multas')) }}</td>
+                <td class="money col-planilla">{{ fmtBs(sum('retencion')) }}</td>
+                <td class="money col-planilla">{{ fmtBs(sum('descuentos')) }}</td>
                 <td class="money">{{ fmtBs(sum('saldo')) }}</td>
                 <td colspan="4"></td>
                 <td>{{ afPromedio }}%</td>
@@ -277,6 +295,16 @@ const afinPromedio = computed(() =>
 
 .table-subtitle { font-size: .75rem; color: #8ea9bf; margin: 4px 0 0; }
 
+.table-legend {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: .7rem;
+  color: #55b8ef;
+  margin: 6px 0 0;
+}
+.table-legend i { font-size: .85rem; flex-shrink: 0; }
+
 .contracts-table {
   width: 100%;
   min-width: 2850px;
@@ -295,9 +323,34 @@ const afinPromedio = computed(() =>
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: .04em;
+  vertical-align: middle;
 }
 
 .col-acciones-th { position: sticky; left: 0; z-index: 2; background: #0a1826; }
+
+/* --- Grupo "Retenciones y Descuentos" (viene de Planillas) --- */
+.group-header-planillas {
+  background: rgba(85, 184, 239, .12) !important;
+  color: #55b8ef !important;
+  border-left: 1px solid rgba(85, 184, 239, .3);
+  border-right: 1px solid rgba(85, 184, 239, .3);
+}
+.group-tag {
+  display: block;
+  margin-top: 3px;
+  font-size: .58rem;
+  font-weight: 700;
+  text-transform: none;
+  letter-spacing: 0;
+  color: #55b8ef;
+  opacity: .85;
+}
+.sub-header-planillas {
+  background: rgba(85, 184, 239, .07) !important;
+  color: #7fc4ef !important;
+  border-left: 1px solid rgba(85, 184, 239, .18);
+  border-right: 1px solid rgba(85, 184, 239, .18);
+}
 
 .contracts-table tbody tr { border-bottom: 1px solid #152a3e; transition: background .15s, opacity .15s; }
 .contracts-table tbody tr:hover { background: rgba(0, 201, 167, .045); }
@@ -315,6 +368,16 @@ const afinPromedio = computed(() =>
 }
 
 .contracts-table td.text-left { text-align: left; }
+
+/* Celdas del cuerpo que pertenecen al grupo de Planillas */
+.col-planilla {
+  background: rgba(85, 184, 239, .045);
+  border-left: 1px solid rgba(85, 184, 239, .12);
+  border-right: 1px solid rgba(85, 184, 239, .12);
+}
+.total-row .col-planilla {
+  background: rgba(85, 184, 239, .1) !important;
+}
 
 .col-acciones {
   position: sticky;

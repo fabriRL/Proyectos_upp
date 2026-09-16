@@ -125,6 +125,10 @@ onMounted(cargarReporte)
       <div class="rounded-xl overflow-hidden" style="background-color:#0d1f30; border:1px solid #1e3a52;">
         <div class="px-5 py-3" style="border-bottom:1px solid #19354d;">
           <div class="section-title" style="margin-bottom:0;">Estado por proyecto</div>
+          <p class="table-legend">
+            <i class="ti ti-info-circle"></i>
+            Las columnas resaltadas en azul se calculan a partir de los Contratos del proyecto; el resto son datos propios del proyecto.
+          </p>
         </div>
 
         <div v-if="!proyectos.length" class="text-center py-10" style="color:#8ea9bf;">
@@ -132,38 +136,95 @@ onMounted(cargarReporte)
         </div>
 
         <div v-else class="overflow-x-auto">
-          <table class="reporte-table">
-            <thead>
-              <tr>
-                <th>N°</th><th>Código</th><th>Proyecto</th>
-                <th>Avance Físico</th><th>Avance Financiero</th>
-                <th>Días Restantes</th><th>Estado General</th><th>Semáforo</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="p in proyectos" :key="p.codigo">
-                <td class="col-numero">{{ p.n }}</td>
-                <td class="font-mono" style="color:#8ea9bf;">{{ p.codigo }}</td>
-                <td class="text-left" style="color:#e4f0f7;font-weight:600;">{{ p.nombre }}</td>
-                <td class="money">{{ p.avance_fisico }}%</td>
-                <td class="money">{{ p.avance_financiero }}%</td>
-                <td>{{ p.dias_restantes !== null ? p.dias_restantes + ' días' : '—' }}</td>
-                <td>
-                  <span
-                    class="badge-estado"
-                    :style="{ color: badgeEstado(p.estado_general).color, background: badgeEstado(p.estado_general).bg, borderColor: badgeEstado(p.estado_general).border }"
-                  >
-                    {{ p.estado_general }}
-                  </span>
-                </td>
-                <td>
-                  <span class="badge-semaforo" :style="{ color: p.semaforo.color, borderColor: p.semaforo.color }">
-                    {{ p.semaforo.texto }}
-                  </span>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+         <table class="reporte-table">
+          <thead>
+            <tr>
+              <th rowspan="2">N°</th>
+              <th rowspan="2">Código</th>
+              <th rowspan="2">Proyecto</th>
+              <th rowspan="2">Entidad Ejec. / Supervisión</th>
+              <th rowspan="2">Monto D.S. (Bs)</th>
+              <th colspan="10" class="group-header-contratos">
+                Datos de Contratos
+                <span class="group-tag">Desde Contratos</span>
+              </th>
+              <th rowspan="2">Últ. Modificaciones</th>
+              <th rowspan="2" class="col-pendiente-th">Últ. Acciones (Resoluciones)</th>
+              <th rowspan="2" class="col-pendiente-th">Planilla Pend. (Contratista)</th>
+              <th rowspan="2" class="col-pendiente-th">Monto Pend. Contratista</th>
+              <th rowspan="2" class="col-pendiente-th">Planilla Pend. (Supervisión)</th>
+              <th rowspan="2" class="col-pendiente-th">Monto Pend. Supervisión</th>
+              <th rowspan="2" class="col-pendiente-th">Increm. D.S. 5321</th>
+              <th rowspan="2" class="col-pendiente-th">Anticipo D.S. 5406</th>
+              <th rowspan="2" class="col-pendiente-th">Asignación SIGEP</th>
+              <th rowspan="2">Problemas</th>
+              <th rowspan="2">Acciones</th>
+              <th rowspan="2">Líneas y Capacidades</th>
+              <th rowspan="2">Días Restantes</th>
+              <th rowspan="2">Semáforo</th>
+            </tr>
+            <tr>
+              <th class="sub-header-contratos">Contratistas</th>
+              <th class="sub-header-contratos">Contrato Original (Bs)</th>
+              <th class="sub-header-contratos">Según Modificaciones (Bs)</th>
+              <th class="sub-header-contratos">Orden Proceder</th>
+              <th class="sub-header-contratos">Concl. Prevista</th>
+              <th class="sub-header-contratos">Avance Físico</th>
+              <th class="sub-header-contratos">Avance Financiero</th>
+              <th class="sub-header-contratos">Entrega Provisional</th>
+              <th class="sub-header-contratos">Entrega Definitiva</th>
+              <th class="sub-header-contratos">Estado General</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="p in proyectos" :key="p.codigo">
+              <td class="col-numero">{{ p.n }}</td>
+              <td class="font-mono" style="color:#8ea9bf;">{{ p.codigo }}</td>
+              <td class="text-left" style="color:#e4f0f7;font-weight:600;">{{ p.nombre }}</td>
+              <td class="text-left" style="color:#b9cadb;">{{ p.empresa_supervision || '—' }}</td>
+              <td class="money">{{ Number(p.monto_decreto_vigente).toLocaleString('es-BO', { minimumFractionDigits: 2 }) }}</td>
+
+              <td class="text-left col-contrato" style="color:#b9cadb;">{{ p.contratistas }}</td>
+              <td class="money col-contrato">{{ Number(p.monto_original).toLocaleString('es-BO', { minimumFractionDigits: 2 }) }}</td>
+              <td class="money col-contrato">{{ Number(p.monto_modificaciones).toLocaleString('es-BO', { minimumFractionDigits: 2 }) }}</td>
+              <td class="col-contrato">{{ p.fecha_orden_proceder || '—' }}</td>
+              <td class="col-contrato">{{ p.fecha_conclusion_prevista || '—' }}</td>
+              <td class="money col-contrato">{{ p.avance_fisico }}%</td>
+              <td class="money col-contrato">{{ p.avance_financiero }}%</td>
+              <td class="col-contrato">{{ p.fecha_entrega_provisional || 'En proceso' }}</td>
+              <td class="col-contrato">{{ p.fecha_entrega_definitiva || 'En proceso' }}</td>
+              <td class="col-contrato">
+                <span
+                  class="badge-estado"
+                  :style="{ color: badgeEstado(p.estado_general).color, background: badgeEstado(p.estado_general).bg, borderColor: badgeEstado(p.estado_general).border }"
+                >
+                  {{ p.estado_general }}
+                </span>
+              </td>
+
+              <td class="text-left" style="color:#b9cadb;max-width:180px;">{{ p.ultimas_modificaciones || '—' }}</td>
+              <td class="col-pendiente">{{ p.ultimas_acciones || '—' }}</td>
+              <td class="col-pendiente">{{ p.descripcion_planilla_pendiente_contratista || '—' }}</td>
+              <td class="col-pendiente">{{ p.monto_planilla_pendiente_contratista || '—' }}</td>
+              <td class="col-pendiente">{{ p.descripcion_planilla_pendiente_supervision || '—' }}</td>
+              <td class="col-pendiente">{{ p.monto_planilla_pendiente_supervision || '—' }}</td>
+              <td class="col-pendiente">{{ p.incremento_ds_5321 || '—' }}</td>
+              <td class="col-pendiente">{{ p.anticipo_adicional_ds_5406 || '—' }}</td>
+              <td class="col-pendiente">{{ p.tiene_sigep === true ? 'Sí' : p.tiene_sigep === false ? 'No' : '—' }}</td>
+
+              <td class="text-left" style="color:#b9cadb;max-width:160px;">{{ p.problemas || '—' }}</td>
+              <td class="text-left" style="color:#b9cadb;max-width:160px;">{{ p.acciones || '—' }}</td>
+              <td class="text-left" style="color:#b9cadb;max-width:200px;">{{ p.lineas_capacidades || '—' }}</td>
+
+              <td>{{ p.dias_restantes !== null ? p.dias_restantes + ' días' : '—' }}</td>
+              <td>
+                <span class="badge-semaforo" :style="{ color: p.semaforo.color, borderColor: p.semaforo.color }">
+                  {{ p.semaforo.texto }}
+                </span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
         </div>
       </div>
     </template>
@@ -172,10 +233,21 @@ onMounted(cargarReporte)
 </template>
 
 <style scoped>
-.reporte-page { max-width: 1400px; margin: auto; }
+.reporte-page { max-width: 1600px; margin: auto; }
+
+.table-legend {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: .7rem;
+  color: #55b8ef;
+  margin: 6px 0 0;
+}
+.table-legend i { font-size: .85rem; flex-shrink: 0; }
 
 .reporte-table {
   width: 100%;
+  min-width: 1900px;
   border-collapse: collapse;
   font-size: .82rem;
 }
@@ -193,6 +265,31 @@ onMounted(cargarReporte)
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: .04em;
+  vertical-align: middle;
+}
+
+/* --- Grupo "Datos de Contratos" (mismo patrón que Contratos.vue) --- */
+.group-header-contratos {
+  background: rgba(85, 184, 239, .12) !important;
+  color: #55b8ef !important;
+  border-left: 1px solid rgba(85, 184, 239, .3);
+  border-right: 1px solid rgba(85, 184, 239, .3);
+}
+.group-tag {
+  display: block;
+  margin-top: 3px;
+  font-size: .58rem;
+  font-weight: 700;
+  text-transform: none;
+  letter-spacing: 0;
+  color: #55b8ef;
+  opacity: .85;
+}
+.sub-header-contratos {
+  background: rgba(85, 184, 239, .07) !important;
+  color: #7fc4ef !important;
+  border-left: 1px solid rgba(85, 184, 239, .18);
+  border-right: 1px solid rgba(85, 184, 239, .18);
 }
 
 .reporte-table tbody tr {
@@ -212,6 +309,13 @@ onMounted(cargarReporte)
 
 .reporte-table td.text-left {
   text-align: left;
+}
+
+/* Celdas del cuerpo que pertenecen al grupo de Contratos */
+.col-contrato {
+  background: rgba(85, 184, 239, .045);
+  border-left: 1px solid rgba(85, 184, 239, .12);
+  border-right: 1px solid rgba(85, 184, 239, .12);
 }
 
 .col-numero {
@@ -242,7 +346,7 @@ onMounted(cargarReporte)
   font-size: .7rem;
   font-weight: 800;
   letter-spacing: .02em;
-}
+} 
 
 @media (max-width: 700px) {
   .reporte-page { padding: 14px; }

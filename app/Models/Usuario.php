@@ -54,4 +54,15 @@ class Usuario extends Authenticatable
             'id_rol'
         );
     }
+
+    // Verifica si el usuario, a través de su rol, tiene un permiso
+    // específico. Usuarios sin rol asignado nunca tienen permisos.
+    public function tienePermiso(string $nombrePermiso): bool
+    {
+        if (!$this->id_rol) {
+            return false;
+        }
+
+        return $this->rol?->tienePermiso($nombrePermiso) ?? false;
+    }
 }

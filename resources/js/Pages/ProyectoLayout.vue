@@ -1,21 +1,29 @@
 <script setup>
 import { useRoute } from 'vue-router'
-import { ref, watch, nextTick } from 'vue'
+import { ref, computed, watch, nextTick } from 'vue'
 import axios from '@/lib/axios'
+import { useAuth } from '@/composables/useAuth'
 
 const route = useRoute()
+const { tienePermiso } = useAuth()
 
-const tabs = [
-  { name: 'datos', label: '1. Datos generales', icon: 'ti-file-text' },
-  { name: 'cronograma', label: '2. Cronograma', icon: 'ti-calendar-event' },
-  { name: 'problemas', label: '3. Problemas', icon: 'ti-alert-circle' },
-  { name: 'indicadores', label: '4. Resumen', icon: 'ti-chart-dots-3' },
-  { name: 'contratos', label: '6. Contratos', icon: 'ti-clipboard-list' },
-  { name: 'modificaciones', label: 'Modif. Contractuales', icon: 'ti-file-diff' },
-  { name: 'planillas', label: 'Planillas', icon: 'ti-receipt' },
-  { name: 'decretos', label: '7. Decreto Supremo', icon: 'ti-file-certificate' },
-  { name: 'financiero', label: '8. Prog. financiera', icon: 'ti-chart-bar' },
+const tabsCompletas = [
+  { name: 'datos', label: '1. Datos generales', icon: 'ti-file-text', permiso: 'proyectos.gestionar' },
+  { name: 'cronograma', label: '2. Cronograma', icon: 'ti-calendar-event', permiso: 'cronograma.gestionar' },
+  { name: 'problemas', label: '3. Problemas', icon: 'ti-alert-circle', permiso: 'problemas.gestionar' },
+  { name: 'indicadores', label: '4. Resumen', icon: 'ti-chart-dots-3', permiso: 'resumen.ver' },
+  { name: 'contratos', label: '6. Contratos', icon: 'ti-clipboard-list', permiso: 'contratos.gestionar' },
+  { name: 'modificaciones', label: 'Modif. Contractuales', icon: 'ti-file-diff', permiso: 'modificaciones.gestionar' },
+  { name: 'planillas', label: 'Planillas', icon: 'ti-receipt', permiso: 'planillas.gestionar' },
+  { name: 'decretos', label: '7. Decreto Supremo', icon: 'ti-file-certificate', permiso: 'decretos.gestionar' },
+  { name: 'financiero', label: '8. Prog. financiera', icon: 'ti-chart-bar', permiso: 'financiero.gestionar' },
 ]
+
+// Solo se muestran las pestañas cuyo permiso el usuario sí tiene —
+// mismo criterio que en AppSidebar.vue.
+const tabs = computed(() =>
+  tabsCompletas.filter(tab => tienePermiso(tab.permiso))
+)
 
 const nombreProyecto = ref('')
 const cargandoNombre = ref(true)
@@ -159,10 +167,22 @@ watch(
 
     <!-- =====================================================
          CONTENIDO DE LA PÁGINA
+         =====================================================
+         v-slot + :key="route.fullPath" fuerza a Vue a destruir
+         y volver a MONTAR el componente en cada cambio de ruta
+         (de pestaña o de proyecto), así onMounted() siempre se
+         vuelve a ejecutar y la página recarga sus datos. El
+         <Transition> solo maquilla ese cambio con un fade+slide
+         corto — NO se usa <KeepAlive>, porque eso es justamente
+         lo que cachea instancias viejas y deja datos desactualizados.
          ===================================================== -->
 
     <div class="project-content">
-      <RouterView />
+      <RouterView v-slot="{ Component }">
+        <Transition name="fade-slide" mode="out-in">
+          <component :is="Component" :key="route.fullPath" />
+        </Transition>
+      </RouterView>
     </div>
 
   </div>
@@ -364,6 +384,26 @@ watch(
   width: 100%;
 
   min-width: 0;
+}
+
+
+/* =========================================================
+   TRANSICIÓN ENTRE PESTAÑAS / PROYECTOS
+   ========================================================= */
+
+.fade-slide-enter-active,
+.fade-slide-leave-active {
+  transition: opacity 0.16s ease, transform 0.16s ease;
+}
+
+.fade-slide-enter-from {
+  opacity: 0;
+  transform: translateY(6px);
+}
+
+.fade-slide-leave-to {
+  opacity: 0;
+  transform: translateY(-6px);
 }
 
 

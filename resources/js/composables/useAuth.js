@@ -33,6 +33,7 @@ function normalizarUsuario(raw) {
     initials: iniciales || 'US',
   }
 }
+
 const storedUser =
   localStorage.getItem(STORAGE_KEY) ||
   sessionStorage.getItem(STORAGE_KEY)
@@ -49,7 +50,6 @@ const authToken = ref(
   storedToken || null
 )
 
-
 export function useAuth() {
 
   const isAuthenticated = computed(() => {
@@ -58,7 +58,6 @@ export function useAuth() {
       authToken.value
     )
   })
-
 
   /**
    * =========================================
@@ -87,9 +86,7 @@ export function useAuth() {
         }),
       })
 
-
       const data = await response.json()
-
 
       if (!response.ok) {
 
@@ -102,10 +99,8 @@ export function useAuth() {
         }
       }
 
-
       const token = data.token
       const user = normalizarUsuario(data.usuario)
-
 
       if (!token || !user) {
 
@@ -117,13 +112,11 @@ export function useAuth() {
         }
       }
 
-
       /**
        * Guardamos en memoria
        */
       currentUser.value = user
       authToken.value = token
-
 
       /**
        * Elegimos almacenamiento
@@ -131,7 +124,6 @@ export function useAuth() {
       const storage = remember
         ? localStorage
         : sessionStorage
-
 
       /**
        * Limpiamos sesiones anteriores
@@ -141,7 +133,6 @@ export function useAuth() {
 
       localStorage.removeItem(TOKEN_KEY)
       sessionStorage.removeItem(TOKEN_KEY)
-
 
       /**
        * Guardamos sesión
@@ -155,7 +146,6 @@ export function useAuth() {
         TOKEN_KEY,
         token
       )
-
 
       return {
         ok: true,
@@ -181,7 +171,6 @@ export function useAuth() {
     }
   }
 
-
   /**
    * =========================================
    * OBTENER TOKEN
@@ -191,7 +180,6 @@ export function useAuth() {
 
     return authToken.value
   }
-
 
   /**
    * =========================================
@@ -206,7 +194,6 @@ export function useAuth() {
       return null
     }
 
-
     try {
 
       const response = await fetch('/api/user', {
@@ -220,26 +207,21 @@ export function useAuth() {
         },
       })
 
-
       if (!response.ok) {
 
         if (response.status === 401) {
-          logout()
+          await logout()
         }
 
         return null
       }
 
-
       const data = await response.json()
-
 
       const user =
         normalizarUsuario(data.usuario || data)
 
-
       currentUser.value = user
-
 
       /**
        * Actualizamos almacenamiento
@@ -249,12 +231,10 @@ export function useAuth() {
           ? localStorage
           : sessionStorage
 
-
       storage.setItem(
         STORAGE_KEY,
         JSON.stringify(user)
       )
-
 
       return user
 
@@ -269,7 +249,6 @@ export function useAuth() {
     }
   }
 
-
   /**
    * =========================================
    * LOGOUT
@@ -278,7 +257,6 @@ export function useAuth() {
   async function logout() {
 
     const token = authToken.value
-
 
     /**
      * Avisamos a Laravel
@@ -307,13 +285,11 @@ export function useAuth() {
       }
     }
 
-
     /**
      * Limpiamos memoria
      */
     currentUser.value = null
     authToken.value = null
-
 
     /**
      * Limpiamos almacenamiento
@@ -325,6 +301,18 @@ export function useAuth() {
     sessionStorage.removeItem(TOKEN_KEY)
   }
 
+  /**
+   * =========================================
+   * PERMISOS
+   * =========================================
+   * Lee currentUser.permisos (ya viene del backend, tal cual lo guarda
+   * login()/fetchUser() — misma fuente de verdad, sin datos duplicados).
+   */
+  function tienePermiso(nombrePermiso) {
+    const permisos = currentUser.value?.permisos
+    if (!Array.isArray(permisos)) return false
+    return permisos.some(p => p.nombre === nombrePermiso)
+  }
 
   return {
     currentUser,
@@ -333,5 +321,6 @@ export function useAuth() {
     logout,
     getToken,
     fetchUser,
+    tienePermiso,
   }
 }

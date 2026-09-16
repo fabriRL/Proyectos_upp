@@ -141,22 +141,43 @@ onMounted(cargarContratos)
 </script>
 
 <template>
-  <div class="p-5">
-    <div v-if="cargandoContratos" class="text-center py-10" style="color:#8ea9bf;">
-      Cargando contratos...
+  <div class="p-5 planillas-page">
+
+    <!-- ENCABEZADO -->
+    <div class="page-header">
+      <div class="page-header-icon">
+        <i class="ti ti-receipt"></i>
+      </div>
+      <div>
+        <h1>Planillas de Pago</h1>
+        <p>Certificaciones, amortizaciones y desembolsos por contrato.</p>
+      </div>
     </div>
 
-    <div v-else-if="!contratos.length" class="text-center py-10" style="color:#8ea9bf;">
-      Este proyecto todavía no tiene contratos registrados.
+    <div v-if="cargandoContratos" class="state-message">
+      <i class="ti ti-loader-2 spinner"></i>
+      <span>Cargando contratos...</span>
+    </div>
+
+    <div v-else-if="error" class="state-message state-error">
+      <i class="ti ti-alert-circle"></i>
+      <span>{{ error }}</span>
+    </div>
+
+    <div v-else-if="!contratos.length" class="state-message">
+      <i class="ti ti-folder-off"></i>
+      <span>Este proyecto todavía no tiene contratos registrados.</span>
     </div>
 
     <template v-else>
-      <div class="rounded-xl p-4 mb-4" style="background-color:#0d1f30; border:1px solid #1e3a52;">
-        <div class="field-label" style="margin-bottom:6px;">Contrato / paquete</div>
-        <select
-          v-model="idContratoSeleccionado"
-          style="width:100%;max-width:480px;background:#091520;border:1px solid #1e3a52;border-radius:6px;padding:8px;color:#c8dae7;"
-        >
+
+      <!-- SELECTOR DE CONTRATO -->
+      <div class="selector-card">
+        <div class="selector-label">
+          <i class="ti ti-file-invoice"></i>
+          Contrato / paquete
+        </div>
+        <select v-model="idContratoSeleccionado" class="selector-input">
           <option v-for="c in contratos" :key="c.id_contrato" :value="c.id_contrato">
             N°{{ c.numero }} — {{ c.tipo_contrato }} — {{ c.contratista }}
           </option>
@@ -164,44 +185,72 @@ onMounted(cargarContratos)
       </div>
 
       <template v-if="contratoSeleccionado">
-        <div class="grid grid-cols-3 gap-3 mb-5">
-          <div v-for="[l, v, color] in [
-              ['Monto ejecutado acum.', fmtBs(Number(contratoSeleccionado.monto_ejecutado_acumulado)), '#d0dde8'],
-              ['Anticipo otorgado', fmtBs(Number(contratoSeleccionado.anticipo)), '#d0dde8'],
-              ['Demora promedio de pago', demoraPromedio !== null ? `${demoraPromedio} días` : '—', '#f87171'],
-            ]"
-            :key="l" class="rounded-xl p-4" style="background-color:#0d1f30; border:1px solid #1e3a52;">
-            <div class="field-label">{{ l }}</div>
-            <div class="font-bold text-xl mt-1" :style="{ color }">{{ v }}</div>
+
+        <!-- TARJETAS DE RESUMEN -->
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-icon" style="color:#00c9a7;background:rgba(0,201,167,.1);">
+              <i class="ti ti-cash"></i>
+            </div>
+            <div>
+              <div class="stat-label">Monto ejecutado acum.</div>
+              <div class="stat-value">{{ fmtBs(Number(contratoSeleccionado.monto_ejecutado_acumulado)) }}</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon" style="color:#55b8ef;background:rgba(77,179,240,.1);">
+              <i class="ti ti-wallet"></i>
+            </div>
+            <div>
+              <div class="stat-label">Anticipo otorgado</div>
+              <div class="stat-value">{{ fmtBs(Number(contratoSeleccionado.anticipo)) }}</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon" :style="{ color: demoraPromedio > 0 ? '#f87171' : '#8ea9bf', background: demoraPromedio > 0 ? 'rgba(248,113,113,.1)' : 'rgba(142,169,191,.1)' }">
+              <i class="ti ti-clock-exclamation"></i>
+            </div>
+            <div>
+              <div class="stat-label">Demora promedio de pago</div>
+              <div class="stat-value" :style="{ color: demoraPromedio > 0 ? '#f87171' : '#c8dae7' }">
+                {{ demoraPromedio !== null ? `${demoraPromedio} días` : '—' }}
+              </div>
+            </div>
           </div>
         </div>
 
-        <div class="rounded-xl overflow-hidden" style="background-color:#0d1f30; border:1px solid #1e3a52;">
-          <div class="px-5 py-3 flex justify-between items-center gap-3" style="border-bottom:1px solid #19354d;">
-            <div class="section-title" style="margin-bottom:0;">
-              Paquete {{ contratoSeleccionado.numero }} — {{ contratoSeleccionado.contratista }}
+        <!-- TABLA DE PLANILLAS -->
+        <div class="table-card">
+          <div class="table-card-header">
+            <div>
+              <div class="table-card-title">
+                <i class="ti ti-list-details"></i>
+                Paquete {{ contratoSeleccionado.numero }} — {{ contratoSeleccionado.contratista }}
+              </div>
+              <div class="table-card-legend">
+                (A) Importe Ejecutado &nbsp;·&nbsp; (B) Retenciones &nbsp;·&nbsp; (C) Multas &nbsp;·&nbsp;
+                (E) Amort. Anticipo &nbsp;·&nbsp; (F) Pagado SIGEP &nbsp;·&nbsp; (G) Monto C-31
+              </div>
             </div>
-            <button
-              class="btn btn-sm"
-              style="background:#00c9a7;color:#04211c;font-weight:600;"
-              @click="mostrarModal = true"
-            >
-              + Nueva planilla
+            <button class="btn-nueva" @click="mostrarModal = true">
+              <i class="ti ti-plus"></i> Nueva planilla
             </button>
           </div>
 
-          <div v-if="cargandoPlanillas" class="text-center py-10" style="color:#8ea9bf;">
-            Cargando planillas...
+          <div v-if="cargandoPlanillas" class="state-message">
+            <i class="ti ti-loader-2 spinner"></i>
+            <span>Cargando planillas...</span>
           </div>
 
-          <div v-else-if="!planillas.length" class="text-center py-10" style="color:#8ea9bf;">
-            Este contrato todavía no tiene planillas registradas.
+          <div v-else-if="!planillas.length" class="state-message">
+            <i class="ti ti-file-off"></i>
+            <span>Este contrato todavía no tiene planillas registradas.</span>
           </div>
 
           <div v-else class="overflow-x-auto">
-            <table class="table table-xs planillas-table">
+            <table class="planillas-table">
               <thead>
-                <tr style="border-bottom:2px solid #1e3a52;">
+                <tr>
                   <th class="col-acciones-th">Acciones</th>
                   <th>N°</th><th>Periodo</th>
                   <th>Importe Ejecutado (A)</th><th>Retenciones (B)</th><th>Multas (C)</th>
@@ -215,7 +264,7 @@ onMounted(cargarContratos)
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="p in planillas" :key="p.id_planilla" style="border-bottom:1px solid #152a3e;">
+                <tr v-for="p in planillas" :key="p.id_planilla">
                   <td class="col-acciones">
                     <button class="btn-accion btn-editar" title="Editar planilla" @click="abrirEditar(p)">
                       <i class="ti ti-pencil"></i>
@@ -224,46 +273,51 @@ onMounted(cargarContratos)
                       <i class="ti ti-trash"></i>
                     </button>
                   </td>
-                  <td class="font-mono font-bold text-[11px]" style="color:#d0dde8;">{{ p.numero }}</td>
-                  <td class="font-mono text-[11px]" style="color:#8ea9bf;">{{ fmtFecha(p.periodo_desde) }} → {{ fmtFecha(p.periodo_hasta) }}</td>
-                  <td class="font-mono text-[11px]" style="color:#c8dae7;">{{ fmtBs(p.monto_certificado) }}</td>
-                  <td class="font-mono text-[11px]" :style="{ color: p.retencion_gcc > 0 ? '#f87171' : '#8ea9bf' }">{{ p.retencion_gcc > 0 ? fmtBs(p.retencion_gcc) : '—' }}</td>
-                  <td class="font-mono text-[11px]" :style="{ color: p.multa > 0 ? '#f87171' : '#8ea9bf' }">{{ p.multa > 0 ? fmtBs(p.multa) : '—' }}</td>
-                  <td class="font-mono text-[11px]" style="color:#c8dae7;">{{ p.amortizacion > 0 ? fmtBs(p.amortizacion) : '—' }}</td>
-                  <td class="font-mono font-bold text-[11px]" style="color:#00c9a7;">{{ fmtBs(p.liquido_pagable) }}</td>
-                  <td class="font-mono text-[11px]" style="color:#c8dae7;">{{ fmtBs(p.saldo_anticipo_por_amortizar) }}</td>
-                  <td class="font-bold" :style="{ color: p.dias_atraso > 0 ? '#f87171' : '#8ea9bf' }">{{ p.dias_atraso > 0 ? p.dias_atraso : '—' }}</td>
-                  <td class="font-mono text-[11px]" style="color:#8ea9bf;">{{ p.avance_fisico !== null ? p.avance_fisico.toFixed(2) + '%' : '—' }}</td>
-                  <td class="font-mono text-[11px]" style="color:#c8dae7;">{{ p.importe_pagado_sigep > 0 ? fmtBs(p.importe_pagado_sigep) : '—' }}</td>
-                  <td class="font-mono text-[11px]" :style="{ color: p.diferencia_lp_f !== 0 ? '#fbbf24' : '#8ea9bf' }">{{ fmtBs(p.diferencia_lp_f) }}</td>
-                  <td class="font-mono text-[11px]" style="color:#8ea9bf;">{{ p.numero_c31 || '—' }}</td>
-                  <td class="font-mono text-[11px]" style="color:#c8dae7;">{{ p.monto_c31 > 0 ? fmtBs(p.monto_c31) : '—' }}</td>
-                  <td class="font-mono text-[11px]" :style="{ color: p.diferencia_sigep_c31 !== 0 ? '#fbbf24' : '#8ea9bf' }">{{ fmtBs(p.diferencia_sigep_c31) }}</td>
-                  <td class="font-mono text-[11px]" style="color:#8ea9bf;">{{ fmtFecha(p.fecha_aprobacion_fiscal) }}</td>
-                  <td class="font-mono text-[11px]" style="color:#8ea9bf;">{{ fmtFecha(p.fecha_elaboracion_planilla) }}</td>
-                  <td class="font-mono text-[11px]" style="color:#8ea9bf;">{{ fmtFecha(p.fecha_desembolso) }}</td>
-                  <td class="font-bold" :style="{ color: p.dias_demora > 90 ? '#f87171' : (p.dias_demora > 0 ? '#f59e0b' : '#8ea9bf') }">{{ p.dias_demora !== null && p.dias_demora !== undefined ? p.dias_demora : '—' }}</td>
+                  <td class="col-numero">{{ p.numero }}</td>
+                  <td class="col-fecha">{{ fmtFecha(p.periodo_desde) }} → {{ fmtFecha(p.periodo_hasta) }}</td>
+                  <td class="money">{{ fmtBs(p.monto_certificado) }}</td>
+                  <td class="money" :class="{ 'valor-alerta': p.retencion_gcc > 0 }">{{ p.retencion_gcc > 0 ? fmtBs(p.retencion_gcc) : '—' }}</td>
+                  <td class="money" :class="{ 'valor-alerta': p.multa > 0 }">{{ p.multa > 0 ? fmtBs(p.multa) : '—' }}</td>
+                  <td class="money">{{ p.amortizacion > 0 ? fmtBs(p.amortizacion) : '—' }}</td>
+                  <td class="money col-destacada">{{ fmtBs(p.liquido_pagable) }}</td>
+                  <td class="money">{{ fmtBs(p.saldo_anticipo_por_amortizar) }}</td>
+                  <td class="col-centro" :class="{ 'valor-alerta': p.dias_atraso > 0 }">{{ p.dias_atraso > 0 ? p.dias_atraso : '—' }}</td>
+                  <td class="col-fecha">{{ p.avance_fisico !== null ? p.avance_fisico.toFixed(2) + '%' : '—' }}</td>
+                  <td class="money">{{ p.importe_pagado_sigep > 0 ? fmtBs(p.importe_pagado_sigep) : '—' }}</td>
+                  <td class="money" :class="{ 'valor-warning': p.diferencia_lp_f !== 0 }">{{ fmtBs(p.diferencia_lp_f) }}</td>
+                  <td class="col-fecha">{{ p.numero_c31 || '—' }}</td>
+                  <td class="money">{{ p.monto_c31 > 0 ? fmtBs(p.monto_c31) : '—' }}</td>
+                  <td class="money" :class="{ 'valor-warning': p.diferencia_sigep_c31 !== 0 }">{{ fmtBs(p.diferencia_sigep_c31) }}</td>
+                  <td class="col-fecha">{{ fmtFecha(p.fecha_aprobacion_fiscal) }}</td>
+                  <td class="col-fecha">{{ fmtFecha(p.fecha_elaboracion_planilla) }}</td>
+                  <td class="col-fecha">{{ fmtFecha(p.fecha_desembolso) }}</td>
+                  <td
+                    class="col-centro"
+                    :class="{ 'valor-alerta': p.dias_demora > 90, 'valor-warning': p.dias_demora > 0 && p.dias_demora <= 90 }"
+                  >
+                    {{ p.dias_demora !== null && p.dias_demora !== undefined ? p.dias_demora : '—' }}
+                  </td>
                 </tr>
 
                 <tr class="total-row">
                   <td colspan="3">TOTAL</td>
-                  <td class="font-mono text-[11px]">{{ fmtBs(totalCertificado) }}</td>
-                  <td class="font-mono text-[11px]">{{ totalRetencion > 0 ? fmtBs(totalRetencion) : '—' }}</td>
-                  <td class="font-mono text-[11px]">{{ totalMultas > 0 ? fmtBs(totalMultas) : '—' }}</td>
-                  <td class="font-mono text-[11px]">{{ totalAmortizacion > 0 ? fmtBs(totalAmortizacion) : '—' }}</td>
-                  <td class="font-mono font-bold text-[11px]" style="color:#00c9a7;">{{ fmtBs(totalLiquido) }}</td>
+                  <td class="money">{{ fmtBs(totalCertificado) }}</td>
+                  <td class="money">{{ totalRetencion > 0 ? fmtBs(totalRetencion) : '—' }}</td>
+                  <td class="money">{{ totalMultas > 0 ? fmtBs(totalMultas) : '—' }}</td>
+                  <td class="money">{{ totalAmortizacion > 0 ? fmtBs(totalAmortizacion) : '—' }}</td>
+                  <td class="money" style="color:#00c9a7;">{{ fmtBs(totalLiquido) }}</td>
                   <td></td>
                   <td></td>
                   <td></td>
-                  <td class="font-mono text-[11px]">{{ totalPagadoSigep > 0 ? fmtBs(totalPagadoSigep) : '—' }}</td>
-                  <td class="font-mono text-[11px]">{{ fmtBs(totalDiferenciaLpF) }}</td>
+                  <td class="money">{{ totalPagadoSigep > 0 ? fmtBs(totalPagadoSigep) : '—' }}</td>
+                  <td class="money">{{ fmtBs(totalDiferenciaLpF) }}</td>
                   <td></td>
-                  <td class="font-mono text-[11px]">{{ totalMontoC31 > 0 ? fmtBs(totalMontoC31) : '—' }}</td>
-                  <td class="font-mono text-[11px]">{{ fmtBs(totalDiferenciaSigepC31) }}</td>
+                  <td class="money">{{ totalMontoC31 > 0 ? fmtBs(totalMontoC31) : '—' }}</td>
+                  <td class="money">{{ fmtBs(totalDiferenciaSigepC31) }}</td>
                   <td></td>
                   <td></td>
                   <td></td>
-                  <td class="font-bold">{{ demoraPromedio !== null ? demoraPromedio + ' d.' : '—' }}</td>
+                  <td class="col-centro">{{ demoraPromedio !== null ? demoraPromedio + ' d.' : '—' }}</td>
                 </tr>
               </tbody>
             </table>
@@ -290,22 +344,267 @@ onMounted(cargarContratos)
 </template>
 
 <style scoped>
-.planillas-table { min-width: 2350px; }
-.planillas-table th { white-space: normal; line-height: 1.2; text-align: center; padding: 8px 6px; color: #8ea9bf; font-size: .62rem; text-transform: uppercase; }
-.planillas-table td { padding: 8px 6px; text-align: center; white-space: nowrap; }
-.col-acciones-th { position: sticky; left: 0; z-index: 2; background: #0d1f30; }
+.planillas-page { max-width: 1900px; margin: 0 auto; }
+
+/* --- Encabezado --- */
+.page-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 20px;
+}
+.page-header-icon {
+  width: 42px;
+  height: 42px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: rgba(0, 201, 167, .1);
+  border: 1px solid rgba(0, 201, 167, .25);
+  color: #00c9a7;
+  font-size: 20px;
+}
+.page-header h1 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #f2fbff;
+}
+.page-header p {
+  margin: 2px 0 0;
+  color: #8ea9bf;
+  font-size: .8rem;
+}
+
+/* --- Estados (cargando / error / vacío) --- */
+.state-message {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 44px 20px;
+  color: #8ea9bf;
+  font-size: .85rem;
+  text-align: center;
+}
+.state-message i { font-size: 18px; }
+.state-error { color: #fca5a5; }
+.spinner { animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* --- Selector de contrato --- */
+.selector-card {
+  border-radius: 12px;
+  background-color: #0d1f30;
+  border: 1px solid #1e3a52;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+.selector-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #8ea9bf;
+  font-size: .68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  margin-bottom: 8px;
+}
+.selector-input {
+  width: 100%;
+  max-width: 520px;
+  background: #091520;
+  border: 1px solid #1e3a52;
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: #dcebf5;
+  font-size: .85rem;
+}
+
+/* --- Tarjetas de resumen --- */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.stat-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-radius: 12px;
+  background-color: #0d1f30;
+  border: 1px solid #1e3a52;
+  padding: 14px 16px;
+}
+.stat-icon {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  font-size: 18px;
+}
+.stat-label {
+  color: #8ea9bf;
+  font-size: .68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.stat-value {
+  color: #d0dde8;
+  font-weight: 800;
+  font-size: 1.15rem;
+  margin-top: 2px;
+}
+
+/* --- Tarjeta de la tabla --- */
+.table-card {
+  border-radius: 12px;
+  overflow: hidden;
+  background-color: #0d1f30;
+  border: 1px solid #1e3a52;
+}
+.table-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px 20px;
+  border-bottom: 1px solid #19354d;
+  flex-wrap: wrap;
+}
+.table-card-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #f2fbff;
+  font-weight: 700;
+  font-size: .92rem;
+}
+.table-card-legend {
+  margin-top: 6px;
+  color: #647a8e;
+  font-size: .68rem;
+  line-height: 1.5;
+}
+
+.btn-nueva {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #00d0ae, #00aa91);
+  color: #052029;
+  font-weight: 700;
+  font-size: .8rem;
+  cursor: pointer;
+  box-shadow: 0 6px 16px rgba(0, 201, 167, .16);
+  transition: .15s;
+  flex-shrink: 0;
+}
+.btn-nueva:hover { filter: brightness(1.07); transform: translateY(-1px); }
+
+/* --- Tabla --- */
+.planillas-table {
+  width: 100%;
+  min-width: 2350px;
+  border-collapse: collapse;
+  font-size: .78rem;
+}
+.planillas-table thead tr {
+  background: #0a1826;
+  border-bottom: 1px solid #1e3a52;
+}
+.planillas-table th {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: #0a1826;
+  white-space: normal;
+  line-height: 1.25;
+  text-align: center;
+  padding: 10px 8px;
+  color: #9cb5c6;
+  font-size: .64rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+}
+.planillas-table tbody tr {
+  border-bottom: 1px solid #152a3e;
+  transition: background .15s;
+}
+.planillas-table tbody tr:hover {
+  background: rgba(0, 201, 167, .04);
+}
+.planillas-table td {
+  padding: 10px 8px;
+  text-align: center;
+  white-space: nowrap;
+  color: #b9cadb;
+}
+
+.col-numero {
+  font-weight: 800;
+  color: #00c9a7;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+.col-fecha {
+  color: #8ea9bf;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: .74rem;
+}
+.col-centro {
+  font-weight: 700;
+  color: #8ea9bf;
+}
+.col-destacada {
+  font-weight: 800;
+  color: #00c9a7 !important;
+}
+
+.money {
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  color: #e4f0f7;
+  font-weight: 600;
+  text-align: right !important;
+}
+
+.valor-alerta { color: #f87171 !important; }
+.valor-warning { color: #fbbf24 !important; }
+
+.col-acciones-th {
+  position: sticky;
+  left: 0;
+  top: 0;
+  z-index: 4;
+  background: #0a1826;
+}
 .col-acciones {
   position: sticky;
   left: 0;
-  z-index: 1;
+  z-index: 2;
   background: #0d1f30;
   display: flex;
   gap: 6px;
   justify-content: center;
 }
+.planillas-table tbody tr:hover .col-acciones {
+  background: #0f2536;
+}
+
 .btn-accion {
-  width: 26px;
-  height: 26px;
+  width: 27px;
+  height: 27px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -319,10 +618,19 @@ onMounted(cargarContratos)
 .btn-editar:hover { background: rgba(77, 179, 240, .2); border-color: rgba(77, 179, 240, .35); }
 .btn-eliminar { background: rgba(248, 113, 113, .08); border-color: rgba(248, 113, 113, .18); color: #f87171; }
 .btn-eliminar:hover { background: rgba(248, 113, 113, .16); border-color: rgba(248, 113, 113, .3); }
+
 .total-row td {
+  position: sticky;
+  bottom: 0;
   background: #091520 !important;
   border-top: 2px solid #1e3a52;
   color: #f2fbff !important;
   font-weight: 800;
+}
+
+@media (max-width: 900px) {
+  .stats-grid { grid-template-columns: 1fr; }
+  .table-card-header { flex-direction: column; align-items: stretch; }
+  .btn-nueva { justify-content: center; }
 }
 </style>
