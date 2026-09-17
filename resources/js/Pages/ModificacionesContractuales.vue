@@ -263,15 +263,17 @@ onMounted(cargarContratos)
       @created="alGuardarModificacion"
     />
 
-    <EditarModificacion
-      v-if="modificacionEditando"
-      :key="modificacionEditando.id_modificacion"
-      :modificacion="modificacionEditando"
-      :es-ultima="modificacionEditando.numero === numeroMasReciente"
-      :fecha-actual="fechaConclusionVigente"
-      @close="modificacionEditando = null"
-      @updated="alGuardarModificacion"
-    />
+    <Transition name="modal-fade">
+      <EditarModificacion
+        v-if="modificacionEditando"
+        :key="modificacionEditando.id_modificacion"
+        :modificacion="modificacionEditando"
+        :es-ultima="modificacionEditando.numero === numeroMasReciente"
+        :fecha-actual="fechaConclusionVigente"
+        @close="modificacionEditando = null"
+        @updated="alGuardarModificacion"
+      />
+    </Transition>
   </div>
 </template>
 

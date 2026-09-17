@@ -17,7 +17,11 @@ const showLayout = computed(() => !route.meta.public)
     <div class="flex flex-col flex-1" style="min-width:0;">
       <AppTopbar @toggle-menu="collapsed = !collapsed" />
       <main class="flex-1" style="overflow-x:hidden;">
-        <router-view />
+        <router-view v-slot="{ Component }">
+          <transition name="fade-slide" mode="out-in">
+            <component :is="Component" />
+          </transition>
+        </router-view>
       </main>
     </div>
   </div>

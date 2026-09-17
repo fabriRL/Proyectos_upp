@@ -276,17 +276,21 @@ const afinPromedio = computed(() =>
     <NuevoContrato
       :show="mostrarModal"
       :codigo-proyecto="codigoProyecto"
+      :contratos-existentes="rawContratos"
       @close="mostrarModal = false"
       @created="cargar"
     />
 
-    <EditarContrato
-      v-if="contratoEditando"
-      :key="contratoEditando.id_contrato"
-      :contrato="contratoEditando"
-      @close="contratoEditando = null"
-      @updated="cargar"
-    />
+    <Transition name="modal-fade">
+      <EditarContrato
+        v-if="contratoEditando"
+        :key="contratoEditando.id_contrato"
+        :contrato="contratoEditando"
+        :contratos-existentes="rawContratos"
+        @close="contratoEditando = null"
+        @updated="cargar"
+      />
+    </Transition>
   </div>
 </template>
 

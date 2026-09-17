@@ -18,8 +18,9 @@ const MONTH_NAMES = ['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','A
 const ESTADO_BADGE = {
   'Concluida': 'badge badge-success',
   'En curso': 'badge badge-info',
+  'En ejecución': 'badge badge-info',
   'Retrasada': 'badge badge-danger',
-  'Pendiente': 'badge badge-muted',
+
 }
 
 /* ---------------- Proyecto / identificador ---------------- */
@@ -164,6 +165,15 @@ function calcularDuracion(inicio, fin) {
   return Math.floor((fechaFin - fechaInicio) / 86400000) + 1
 }
 
+// Respaldo para la tabla: solo se usa si el backend no envía duracion_dias.
+function calcularDuracionVista(inicio, fin) {
+  if (!inicio || !fin) return null
+  const fechaInicio = toDate(inicio)
+  const fechaFin = toDate(fin)
+  if (!fechaInicio || !fechaFin) return null
+  return diffDays(fechaFin, fechaInicio) + 1
+}
+
 async function guardarActividad() {
   if (!validarFormulario()) return
 
@@ -238,6 +248,7 @@ const actividades = computed(() =>
       nombre: a.actividad,
       inicio: formatDate(a.fecha_inicio),
       fin: formatDate(a.fecha_fin),
+      duracion: a.duracion_dias ?? calcularDuracionVista(a.fecha_inicio, a.fecha_fin),
       estado: a.estado,
       p: Math.min(100, Math.max(0, Number(a.porcentaje_cumplimiento_programado ?? 0))),
       r: Math.min(100, Math.max(0, Number(a.porcentaje_cumplimiento_real ?? 0))),
@@ -427,7 +438,8 @@ defineExpose({ recargar: cargarActividades })
           <div class="gantt-table" :style="{ '--n-cols': weeks.length }">
 
             <div class="gantt-side header-side">
-              <span>N°</span><span>Actividad</span><span>Inicio</span><span>Fin</span><span>Estado</span>
+              <span>N°</span><span>Actividad</span><span>Inicio</span><span>Fin</span>
+              <span>Dur.</span><span>% Prog.</span><span>% Real</span><span>Estado</span>
             </div>
 
             <div class="gantt-timeline gantt-months">
@@ -435,7 +447,8 @@ defineExpose({ recargar: cargarActividades })
             </div>
 
             <div class="gantt-side week-side">
-              <span></span><span></span><span></span><span></span><span></span>
+              <span></span><span></span><span></span><span></span>
+              <span></span><span></span><span></span><span></span>
             </div>
 
             <div class="gantt-timeline week-row">
@@ -452,8 +465,11 @@ defineExpose({ recargar: cargarActividades })
                 <span class="activity-name" :title="fila.nombre">{{ fila.nombre }}</span>
                 <span class="date-cell">{{ fila.inicio }}</span>
                 <span class="date-cell">{{ fila.fin }}</span>
+                <span class="date-cell col-centro">{{ fila.duracion ?? '—' }}</span>
+                <span class="date-cell col-centro">{{ fila.p }}%</span>
+                <span class="date-cell col-centro">{{ fila.r }}%</span>
                 <span class="estado-cell">
-                  <i :class="badgeClass(fila.estado)">{{ fila.estado }}</i>
+                  <i :class="badgeClass(fila.estado)" :title="fila.estado">{{ fila.estado }}</i>
                   <button type="button" class="action-btn edit-btn" title="Editar actividad" @click="abrirEditarActividad(fila.raw)">
                     <i class="ti ti-pencil"></i>
                   </button>
@@ -536,8 +552,9 @@ defineExpose({ recargar: cargarActividades })
                 <select v-model="actividadFormulario.estado" required>
                   <option value="Pendiente">Pendiente</option>
                   <option value="En curso">En curso</option>
+                  <option value="En ejecución">En ejecución</option>
                   <option value="Concluida">Concluida</option>
-                  <option value="Retrasada">Retrasada</option>
+           
                 </select>
               </div>
             </div>
@@ -626,6 +643,9 @@ defineExpose({ recargar: cargarActividades })
   --danger-18: rgba(242,139,130,.18);
   --muted: #91a9ba;
   --muted-10: rgba(142,169,191,.1);
+  --warning: #f0b43c;
+  --warning-10: rgba(240,180,60,.1);
+  --warning-2: rgba(240,180,60,.2);
 
   --bg-0: #081520;
   --bg-1: #0a1a28;
@@ -719,9 +739,9 @@ defineExpose({ recargar: cargarActividades })
 .gantt-scroll::-webkit-scrollbar-track { background: #091722; }
 .gantt-scroll::-webkit-scrollbar-thumb { border-radius: 10px; background: #31536b; }
 
-.gantt-table { min-width: 1320px; display: grid; grid-template-columns: 525px minmax(795px, 1fr); grid-template-rows: 35px 28px; }
+.gantt-table { min-width: 1440px; display: grid; grid-template-columns: 645px minmax(795px, 1fr); grid-template-rows: 35px 28px; }
 
-.gantt-side { display: grid; grid-template-columns: 38px 1.7fr 76px 76px 112px; align-items: center; }
+.gantt-side { display: grid; grid-template-columns: 32px 1fr 58px 58px 44px 56px 56px 130px; align-items: center; }
 .header-side { background: var(--bg-0); border-right: 1px solid var(--border-2); color: #8da6b8; font-size: .62rem; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; }
 .header-side span { padding: 0 8px; }
 
@@ -747,7 +767,9 @@ defineExpose({ recargar: cargarActividades })
 .number { color: var(--accent); font-weight: 800; text-align: center; }
 .activity-name { color: var(--text-soft); font-size: .72rem; font-weight: 550; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .date-cell { color: #7893a7; font-size: .61rem; }
-.estado-cell { display: flex; align-items: center; gap: 5px; min-width: 0; }
+.date-cell.col-centro { text-align: center; }
+.estado-cell { display: flex; align-items: center; gap: 5px; min-width: 0; overflow: hidden; }
+.estado-cell .badge { overflow: hidden; text-overflow: ellipsis; max-width: 90px; }
 
 .action-btn { width: 25px; height: 25px; flex: 0 0 25px; display: inline-flex; justify-content: center; align-items: center; border: 1px solid transparent; border-radius: 6px; cursor: pointer; font-size: 13px; transition: background .15s ease, border-color .15s ease, transform .15s ease; }
 .edit-btn { margin-left: 2px; background: var(--blue-10); border-color: rgba(77,179,240,.16); color: var(--blue); }
@@ -785,6 +807,7 @@ defineExpose({ recargar: cargarActividades })
 .badge-info { background: var(--blue-10); border: 1px solid var(--blue-18); color: var(--blue); }
 .badge-danger { background: var(--danger-10); border: 1px solid var(--danger-18); color: var(--danger); }
 .badge-muted { background: var(--muted-10); border: 1px solid rgba(142,169,191,.13); color: var(--muted); }
+.badge-warning { background: var(--warning-10); border: 1px solid var(--warning-2); color: var(--warning); }
 
 /* ============================================================
    EMPTY / FOOTER

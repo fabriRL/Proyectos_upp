@@ -12,10 +12,10 @@ const emit = defineEmits(['actualizar', 'cerrar'])
 const form = ref({
   fecha_registro: props.problema.fecha_registro?.slice(0, 10) ?? '',
   problema_identificado: props.problema.problema_identificado ?? '',
-  impacto: props.problema.impacto ?? 'Bajo',
   solucion_propuesta: props.problema.solucion_propuesta ?? '',
   responsable: props.problema.responsable ?? '',
   estado: props.problema.estado ?? 'Pendiente',
+  fecha_cierre: props.problema.fecha_cierre?.slice(0, 10) ?? '',
   id_actividad: props.problema.id_actividad ?? '',
 })
 const errorFormulario = ref(null)
@@ -64,6 +64,10 @@ function validar() {
   }
   if (form.value.estado === 'Resuelto' && !puedeMarcarResuelto.value) {
     errorFormulario.value = 'Debes adjuntar el PDF de resolución antes de marcar este problema como Resuelto.'
+    return false
+  }
+  if (form.value.estado === 'Resuelto' && !form.value.fecha_cierre) {
+    errorFormulario.value = 'Debes indicar la fecha de cierre antes de marcar este problema como Resuelto.'
     return false
   }
   return true
@@ -133,6 +137,14 @@ function cerrar() {
               </select>
             </div>
           </div>
+          <div class="form-group form-full" v-if="form.estado === 'Resuelto'">
+            <label>Fecha de cierre</label>
+            <div class="input-wrap">
+              <i class="ti ti-calendar-check"></i>
+              <input type="date" v-model="form.fecha_cierre" :min="form.fecha_registro || undefined" required />
+            </div>
+            <p class="field-hint">Se mostrará en el grid de problemas junto con el estado "Resuelto".</p>
+          </div>
           <div class="form-group form-full">
             <label>Problema identificado</label>
             <div class="input-wrap textarea-wrap">
@@ -154,17 +166,6 @@ function cerrar() {
             <p style="margin:4px 0 0;color:#647a8e;font-size:.64rem;">
               Si eliges una actividad, esta pasará a "Retrasada" automáticamente mientras el problema siga abierto.
             </p>
-          </div>
-          <div class="form-group">
-            <label>Impacto</label>
-            <div class="input-wrap">
-              <i class="ti ti-chart-bar"></i>
-              <select v-model="form.impacto">
-                <option>Bajo</option>
-                <option>Alto</option>
-                <option>Crítico</option>
-              </select>
-            </div>
           </div>
           <div class="form-group">
             <label>Responsable</label>

@@ -333,13 +333,15 @@ onMounted(cargarContratos)
       @created="alGuardarPlanilla"
     />
 
-    <EditarPlanilla
-      v-if="planillaEditando"
-      :key="planillaEditando.id_planilla"
-      :planilla="planillaEditando"
-      @close="planillaEditando = null"
-      @updated="alGuardarPlanilla"
-    />
+    <Transition name="modal-fade">
+      <EditarPlanilla
+        v-if="planillaEditando"
+        :key="planillaEditando.id_planilla"
+        :planilla="planillaEditando"
+        @close="planillaEditando = null"
+        @updated="alGuardarPlanilla"
+      />
+    </Transition>
   </div>
 </template>
 

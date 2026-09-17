@@ -31,6 +31,7 @@ const form = ref({
 
   estado: '',
   observaciones: '',
+  resultado_impacto_socioeconomico: '',
 })
 
 const guardando = ref(false)
@@ -787,6 +788,18 @@ onMounted(cargarDecretosSupremos)
                   placeholder="Observaciones generales del proyecto..."
                 ></textarea>
                 <span v-if="erroresCampo.observaciones" class="field-error">{{ erroresCampo.observaciones[0] }}</span>
+              </div>
+
+              <div class="field">
+                <label>Resultado / Impacto socioeconómico</label>
+                <textarea
+                  v-model="form.resultado_impacto_socioeconomico"
+                  :disabled="guardando"
+                  rows="3"
+                  class="textarea-plain"
+                  placeholder="Impacto socioeconómico esperado o alcanzado por el proyecto..."
+                ></textarea>
+                <span v-if="erroresCampo.resultado_impacto_socioeconomico" class="field-error">{{ erroresCampo.resultado_impacto_socioeconomico[0] }}</span>
               </div>
             </div>
           </div>

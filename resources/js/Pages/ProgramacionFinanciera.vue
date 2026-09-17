@@ -259,13 +259,15 @@ const totalCumplimiento = computed(() =>
       @created="cargar"
     />
 
-    <EditarObjetoGasto
-      v-if="objetoEditando"
-      :key="objetoEditando.id_objeto"
-      :objeto="objetoEditando"
-      @close="objetoEditando = null"
-      @updated="cargar"
-    />
+    <Transition name="modal-fade">
+      <EditarObjetoGasto
+        v-if="objetoEditando"
+        :key="objetoEditando.id_objeto"
+        :objeto="objetoEditando"
+        @close="objetoEditando = null"
+        @updated="cargar"
+      />
+    </Transition>
   </div>
 </template>
 

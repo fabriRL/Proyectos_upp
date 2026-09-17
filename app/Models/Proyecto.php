@@ -23,6 +23,7 @@ class Proyecto extends Model
     'nombre',
     'estado',
     'observaciones',
+    'resultado_impacto_socioeconomico',
     'fiscal_general',
     'fuente_financiamiento',
     'norma_financiador',

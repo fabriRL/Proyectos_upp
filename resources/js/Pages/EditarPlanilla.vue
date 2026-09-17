@@ -180,10 +180,12 @@ const sBtnSave = {
 
             <form @submit.prevent="onSubmit">
 
+              <Transition name="fade-slide" mode="out-in">
+
               <!-- ==================================================
                    PASO 1 — Periodo y fechas
               =================================================== -->
-              <div v-show="currentStep === 1" :style="sGrid">
+              <div v-if="currentStep === 1" :style="sGrid" key="paso-1">
                 <div :style="sField">
                   <label :style="sLabel">Periodo desde</label>
                   <input v-model="form.periodo_desde" type="date" :style="sInput" />
@@ -232,7 +234,7 @@ const sBtnSave = {
               <!-- ==================================================
                    PASO 2 — Montos y seguimiento
               =================================================== -->
-              <div v-show="currentStep === 2" :style="sGrid">
+              <div v-else :style="sGrid" key="paso-2">
                 <div :style="sField">
                   <label :style="sLabel">Importe del trabajo ejecutado (Bs)</label>
                   <input v-model.number="form.monto_certificado" type="number" step="0.01" min="0" :style="sInput" />
@@ -268,6 +270,8 @@ const sBtnSave = {
                   <input v-model.number="form.monto_c31" type="number" step="0.01" min="0" :style="sInput" />
                 </div>
               </div>
+
+              </Transition>
 
               <div :style="sActions">
                 <button

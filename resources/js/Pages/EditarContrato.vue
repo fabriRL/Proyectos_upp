@@ -5,9 +5,42 @@ import { useToast } from '@/composables/useToast.js'
 
 const props = defineProps({
   contrato: { type: Object, required: true },
+  contratosExistentes: { type: Array, default: () => [] },
 })
 const emit = defineEmits(['close', 'updated'])
 const { showToast } = useToast()
+
+const ROMANOS = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII', 'XIII', 'XIV', 'XV']
+
+// Igual que en NuevoContrato.vue: el número de paquete es correlativo por
+// proyecto, calculado sobre los DEMÁS contratos (excluyendo este mismo).
+const siguientePaquete = computed(() => {
+  const patron = /^paquete\s+([ivxlcdm]+)$/i
+  let maxIndice = -1
+  for (const c of props.contratosExistentes) {
+    if (c.id_contrato === props.contrato.id_contrato) continue
+    const m = (c.tipo_contrato || '').match(patron)
+    if (m) {
+      const idx = ROMANOS.indexOf(m[1].toUpperCase())
+      if (idx > maxIndice) maxIndice = idx
+    }
+  }
+  const siguiente = ROMANOS[maxIndice + 1] || String(maxIndice + 2)
+  return `Paquete ${siguiente}`
+})
+
+let tipoContratoPrevio = ''
+
+function mostrarOpcionesTipoContrato(e) {
+  tipoContratoPrevio = form.tipo_contrato
+  form.tipo_contrato = ''
+}
+
+function restaurarTipoContratoSiVacio(e) {
+  if (!form.tipo_contrato) {
+    form.tipo_contrato = tipoContratoPrevio
+  }
+}
 
 function soloFecha(valor) {
   if (!valor) return ''
@@ -218,8 +251,10 @@ const sFileBtn = { display: 'inline-flex', alignItems: 'center', gap: '8px', pad
 
             <form @submit.prevent="onSubmit" novalidate>
 
+              <Transition name="fade-slide" mode="out-in">
+
               <!-- PASO 1 -->
-              <div v-show="currentStep === 1" :style="sGrid">
+              <div v-if="currentStep === 1" :style="sGrid" key="paso-1">
                 <div :style="sFieldFull">
                   <label :style="sLabel">Contratista</label>
                   <input v-model="form.contratista" type="text" :style="sInput" />
@@ -227,11 +262,15 @@ const sFileBtn = { display: 'inline-flex', alignItems: 'center', gap: '8px', pad
                 </div>
 
                 <div :style="sField">
-                  <label :style="sLabel">Tipo de contrato</label>
-                  <select v-model="form.tipo_contrato" :style="sInput">
+                  <label :style="sLabel">Tipo de Contrato/Paquete</label>
+                  <input v-model="form.tipo_contrato" type="text" list="tipos-contrato-list" :style="sInput" placeholder="Ej. Paquete I, Vías y Accesos, Supervisión" @focus="mostrarOpcionesTipoContrato" @blur="restaurarTipoContratoSiVacio" />
+                  <datalist id="tipos-contrato-list">
+                    <option>{{ siguientePaquete }}</option>
+                    <option>Vías y Accesos</option><option>Supervisión</option>
                     <option>Obra</option><option>Consultoría</option>
                     <option>Bienes</option><option>Servicios</option>
-                  </select>
+                  </datalist>
+                  <span :style="sError" v-if="errors.tipo_contrato">{{ errors.tipo_contrato[0] }}</span>
                 </div>
 
                 <div :style="sField">
@@ -242,7 +281,7 @@ const sFileBtn = { display: 'inline-flex', alignItems: 'center', gap: '8px', pad
               </div>
 
               <!-- PASO 2 -->
-              <div v-show="currentStep === 2" :style="sGrid">
+              <div v-else-if="currentStep === 2" :style="sGrid" key="paso-2">
                 <div :style="sField">
                   <label :style="sLabel">Fecha de firma de contrato</label>
                   <input v-model="form.fecha_firma_contrato" type="date" :style="sInput" />
@@ -321,7 +360,7 @@ const sFileBtn = { display: 'inline-flex', alignItems: 'center', gap: '8px', pad
               </div>
 
               <!-- PASO 3 -->
-              <div v-show="currentStep === 3" :style="sGrid">
+              <div v-else :style="sGrid" key="paso-3">
                 <div :style="sFieldFull">
                   <label :style="sLabel">Monto vigente (Bs)</label>
                   <input v-model.number="form.monto_vigente" type="number" step="0.01" min="0" :style="sInput" />
@@ -353,6 +392,8 @@ const sFileBtn = { display: 'inline-flex', alignItems: 'center', gap: '8px', pad
                   />
                 </div>
               </div>
+
+              </Transition>
 
               <div :style="sActions">
                 <button

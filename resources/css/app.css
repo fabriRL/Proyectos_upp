@@ -47,3 +47,51 @@
     --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
 }
+
+/* =========================================================
+   TRANSICIÓN GLOBAL ENTRE PÁGINAS
+   Mismo fade+slide corto que ya usaba ProyectoLayout.vue solo
+   entre pestañas de un proyecto — ahora global, para que
+   App.vue la use también entre TODAS las páginas de la app.
+   ========================================================= */
+.fade-slide-enter-active,
+.fade-slide-leave-active {
+    transition: opacity 0.16s ease, transform 0.16s ease;
+}
+
+.fade-slide-enter-from {
+    opacity: 0;
+    transform: translateY(6px);
+}
+
+.fade-slide-leave-to {
+    opacity: 0;
+    transform: translateY(-6px);
+}
+
+/* =========================================================
+   TRANSICIÓN GLOBAL DE MODALES
+   Fade del overlay + leve escala/slide de la caja del modal.
+   El selector "> div" apunta a la caja (sBox/modal-box), que es
+   siempre el primer hijo directo del overlay en estos modales.
+   ========================================================= */
+.modal-fade-enter-active,
+.modal-fade-leave-active {
+    transition: opacity 0.18s ease;
+}
+
+.modal-fade-enter-active > div,
+.modal-fade-leave-active > div {
+    transition: transform 0.18s ease, opacity 0.18s ease;
+}
+
+.modal-fade-enter-from,
+.modal-fade-leave-to {
+    opacity: 0;
+}
+
+.modal-fade-enter-from > div,
+.modal-fade-leave-to > div {
+    transform: scale(0.96) translateY(10px);
+    opacity: 0;
+}

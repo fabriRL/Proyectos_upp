@@ -13,6 +13,7 @@
         table { width: 100%; border-collapse: collapse; }
         th, td { border: 1px solid #ccc; padding: 3px 4px; text-align: center; }
         th { background: #f0f0f0; font-size: 5.5px; text-transform: uppercase; }
+        th.grupo-contratos { background: #d7e8f7; }
         td.izquierda { text-align: left; }
     </style>
 </head>
@@ -34,19 +35,38 @@
     <table>
         <thead>
             <tr>
-                <th>N°</th><th>Código</th><th>Proyecto</th>
-                <th>Entidad Ejec. / Supervisión</th><th>Contratistas</th>
-                <th>Monto D.S.</th><th>Contrato Original</th><th>Según Modif.</th>
-                <th>Orden Proceder</th><th>Concl. Prevista</th>
-                <th>Av. Físico</th><th>Av. Financiero</th>
-                <th>Av. Infraestr.</th><th>Av. Equipam.</th><th>Av. Insumos/P.M.</th>
+                <th>N°</th><th>Código</th><th>Código SISINWEB</th><th>Proyecto</th>
+                <th>Norma de Financiamiento</th><th>Monto D.S.</th>
+                <th>Av. Físico (SISIN)</th><th>Av. Financiero (SISIN)</th>
+                <th>Estado de Situación</th>
+                <th>Inicio Contractual</th>
                 <th>Entrega Prov.</th><th>Entrega Def.</th>
-                <th>Últ. Modificaciones</th><th>Últ. Acciones</th>
-                <th>Planilla Pend. (Contratista)</th><th>Monto Pend. Contratista</th>
-                <th>Planilla Pend. (Superv.)</th><th>Monto Pend. Superv.</th>
-                <th>Increm. D.S. 5321</th><th>Anticipo D.S. 5406</th><th>SIGEP</th>
+                <th>Plazo (Días)</th>
+                <th class="grupo-contratos">Empresa Contratista</th>
+                <th class="grupo-contratos">Monto Original Contratista</th>
+                <th class="grupo-contratos">Monto Modif. Contratista</th>
+                <th class="grupo-contratos">Empresa Supervisión</th>
+                <th class="grupo-contratos">Monto Original Supervisión</th>
+                <th class="grupo-contratos">Monto Modif. Supervisión</th>
+                <th class="grupo-contratos">Orden Proceder</th>
+                <th class="grupo-contratos">Concl. Prevista</th>
+                <th class="grupo-contratos">Av. Infraestr.</th>
+                <th class="grupo-contratos">Av. Equipam.</th>
+                <th class="grupo-contratos">Av. Insumos/P.M.</th>
+                <th class="grupo-contratos">Últ. Modificaciones</th>
+                <th class="grupo-contratos">Últ. Acciones</th>
+                <th class="grupo-contratos">Planilla Pend. (Contratista)</th>
+                <th class="grupo-contratos">Monto Pend. Contratista</th>
+                <th class="grupo-contratos">Planilla Pend. (Superv.)</th>
+                <th class="grupo-contratos">Monto Pend. Superv.</th>
+                <th class="grupo-contratos">Monto Req. hasta Conclusión</th>
+                <th class="grupo-contratos">Increm. D.S. 5321</th>
+                <th class="grupo-contratos">Anticipo D.S. 5406</th>
+                <th class="grupo-contratos">Presup. Gestión</th>
+                <th class="grupo-contratos">SIGEP</th>
                 <th>Problemas</th><th>Acciones</th><th>Líneas/Capacidades</th>
-                <th>Días Rest.</th><th>Estado</th><th>Semáforo</th>
+                <th>Result. Impacto Socioecon.</th><th>Observaciones</th>
+                <th>Días Rest.</th><th>Semáforo</th>
             </tr>
         </thead>
         <tbody>
@@ -54,35 +74,45 @@
             <tr>
                 <td>{{ $p['n'] }}</td>
                 <td>{{ $p['codigo'] }}</td>
+                <td>{{ $p['numero_sisin_web'] ?? '—' }}</td>
                 <td class="izquierda">{{ $p['nombre'] }}</td>
-                <td class="izquierda">{{ $p['empresa_supervision'] ?? '—' }}</td>
-                <td class="izquierda">{{ $p['contratistas'] }}</td>
+                <td class="izquierda">{{ $p['norma_financiamiento'] ?? '—' }}</td>
                 <td>{{ number_format($p['monto_decreto_vigente'], 2) }}</td>
-                <td>{{ number_format($p['monto_original'], 2) }}</td>
-                <td>{{ number_format($p['monto_modificaciones'], 2) }}</td>
-                <td>{{ $p['fecha_orden_proceder'] ?? '—' }}</td>
-                <td>{{ $p['fecha_conclusion_prevista'] ?? '—' }}</td>
                 <td>{{ $p['avance_fisico'] }}%</td>
                 <td>{{ $p['avance_financiero'] }}%</td>
+                <td>{{ $p['estado_general'] }}</td>
+                <td>{{ $p['fecha_inicio_contractual'] ?? '—' }}</td>
+                <td>{{ $p['fecha_entrega_provisional'] ?? '—' }}</td>
+                <td>{{ $p['fecha_entrega_definitiva'] ?? '—' }}</td>
+                <td>{{ $p['plazo_dias'] ?? '—' }}</td>
+                <td class="izquierda">{{ $p['contratistas'] }}</td>
+                <td>{{ number_format($p['monto_original'], 2) }}</td>
+                <td>{{ number_format($p['monto_modificaciones'], 2) }}</td>
+                <td class="izquierda">{{ $p['empresa_supervision'] ?? '—' }}</td>
+                <td>{{ number_format($p['monto_original_supervision'], 2) }}</td>
+                <td>{{ number_format($p['monto_modificaciones_supervision'], 2) }}</td>
+                <td>{{ $p['fecha_orden_proceder'] ?? '—' }}</td>
+                <td>{{ $p['fecha_conclusion_prevista'] ?? '—' }}</td>
                 <td>{{ $p['avance_fisico_infraestructura'] ?? '—' }}</td>
                 <td>{{ $p['avance_fisico_equipamiento'] ?? '—' }}</td>
                 <td>{{ $p['avance_insumos_puesta_marcha'] ?? '—' }}</td>
-                <td>{{ $p['fecha_entrega_provisional'] ?? 'En proceso' }}</td>
-                <td>{{ $p['fecha_entrega_definitiva'] ?? 'En proceso' }}</td>
                 <td class="izquierda">{{ $p['ultimas_modificaciones'] ?? '—' }}</td>
                 <td class="izquierda">{{ $p['ultimas_acciones'] ?? '—' }}</td>
                 <td class="izquierda">{{ $p['descripcion_planilla_pendiente_contratista'] ?? '—' }}</td>
-                <td>{{ $p['monto_planilla_pendiente_contratista'] ?? '—' }}</td>
+                <td>{{ number_format($p['monto_planilla_pendiente_contratista'] ?? 0, 2) }}</td>
                 <td class="izquierda">{{ $p['descripcion_planilla_pendiente_supervision'] ?? '—' }}</td>
-                <td>{{ $p['monto_planilla_pendiente_supervision'] ?? '—' }}</td>
-                <td>{{ $p['incremento_ds_5321'] ?? '—' }}</td>
+                <td>{{ number_format($p['monto_planilla_pendiente_supervision'] ?? 0, 2) }}</td>
+                <td>{{ number_format($p['monto_requerido_hasta_conclusion'] ?? 0, 2) }}</td>
+                <td>{{ $p['incremento_ds_5321'] !== null ? number_format($p['incremento_ds_5321'], 2) : '—' }}</td>
                 <td>{{ $p['anticipo_adicional_ds_5406'] ?? '—' }}</td>
-                <td>{{ $p['tiene_sigep'] ?? '—' }}</td>
+                <td>{{ number_format($p['presupuesto_gestion_actual'] ?? 0, 2) }}</td>
+                <td>{{ $p['tiene_sigep'] === true ? 'Sí' : ($p['tiene_sigep'] === false ? 'No' : '—') }}</td>
                 <td class="izquierda">{{ $p['problemas'] ?? '—' }}</td>
                 <td class="izquierda">{{ $p['acciones'] ?? '—' }}</td>
                 <td class="izquierda">{{ $p['lineas_capacidades'] ?? '—' }}</td>
+                <td class="izquierda">{{ $p['resultado_impacto_socioeconomico'] ?? '—' }}</td>
+                <td class="izquierda">{{ $p['observaciones'] ?? '—' }}</td>
                 <td>{{ $p['dias_restantes'] ?? '—' }}</td>
-                <td>{{ $p['estado_general'] }}</td>
                 <td style="color: {{ $p['semaforo']['color'] }}; font-weight: bold;">{{ $p['semaforo']['texto'] }}</td>
             </tr>
             @endforeach

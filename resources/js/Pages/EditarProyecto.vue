@@ -29,6 +29,7 @@ const form = ref({
   plazo_contractual_actual_dias: '',
   estado: '',
   observaciones: '',
+  resultado_impacto_socioeconomico: '',
 })
 
 const cargando = ref(true)
@@ -200,6 +201,7 @@ async function cargarProyecto() {
       plazo_contractual_actual_dias: data.plazo_contractual_actual_dias ?? '',
       estado: data.estado ?? '',
       observaciones: data.observaciones ?? '',
+      resultado_impacto_socioeconomico: data.resultado_impacto_socioeconomico ?? '',
     }
 
     // Precarga el Decreto Supremo que ya tenía el proyecto.
@@ -859,6 +861,18 @@ onMounted(async () => {
                     placeholder="Observaciones generales del proyecto..."
                   ></textarea>
                   <span v-if="erroresCampo.observaciones" class="field-error">{{ erroresCampo.observaciones[0] }}</span>
+                </div>
+
+                <div class="field">
+                  <label>Resultado / Impacto socioeconómico</label>
+                  <textarea
+                    v-model="form.resultado_impacto_socioeconomico"
+                    :disabled="guardando"
+                    rows="3"
+                    class="textarea-plain"
+                    placeholder="Impacto socioeconómico esperado o alcanzado por el proyecto..."
+                  ></textarea>
+                  <span v-if="erroresCampo.resultado_impacto_socioeconomico" class="field-error">{{ erroresCampo.resultado_impacto_socioeconomico[0] }}</span>
                 </div>
               </div>
             </div>

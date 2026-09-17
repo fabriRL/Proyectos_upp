@@ -42,7 +42,28 @@ const {
 const mostrarNuevo = ref(false)
 const problemaEditando = ref(null)
 const guardando = ref(false)
-const lColor = (imp) => imp === 'Crítico' ? '#f87171' : imp === 'Alto' ? '#f59e0b' : '#00c9a7'
+
+/* ============================================================
+   IMPACTO — YA NO se elige manualmente; se calcula igual que en
+   la hoja de cálculo de control: si el problema está Resuelto es
+   Bajo; si no, la gravedad escala según cuántos días lleva abierto.
+   Al ser derivado de la fecha (igual que diasAbiertos), nunca se
+   guarda en la BD — se recalcula cada vez que se pinta el grid.
+============================================================ */
+function calcularImpacto(p) {
+  if (p.estado === 'Resuelto') return 'Bajo'
+  const dias = diasAbiertos(p)
+  if (dias <= 15) return 'Medio'
+  if (dias <= 30) return 'Alto'
+  return 'Crítico'
+}
+
+function lColor(imp) {
+  if (imp === 'Crítico') return '#f87171'
+  if (imp === 'Alto') return '#f59e0b'
+  if (imp === 'Medio') return '#fbbf24'
+  return '#00c9a7' // Bajo
+}
 
 function abrirCrear() {
   mostrarNuevo.value = true
@@ -98,14 +119,14 @@ watch(identificador, fetchProblemas)
          class="rounded-xl overflow-hidden mb-3"
          style="background-color:#0d1f30; border:1px solid #1e3a52;">
       <div class="flex">
-        <!-- Barra lateral de color -->
-        <div class="w-1 shrink-0" :style="{ background: lColor(p.impacto) }" />
+        <!-- Barra lateral de color (según impacto calculado) -->
+        <div class="w-1 shrink-0" :style="{ background: lColor(calcularImpacto(p)) }" />
         <div class="flex-1 p-4">
           <!-- Cabecera -->
           <div class="flex justify-between items-start mb-2">
             <div class="flex flex-wrap items-center gap-2">
               <code class="text-[11px]" style="color:#8ea9bf;">#{{ i + 1 }}</code>
-              <span :class="badgeClass(p.impacto)">{{ p.impacto }}</span>
+              <span :class="badgeClass(calcularImpacto(p))">{{ calcularImpacto(p) }}</span>
               <span :class="badgeClass(p.estado)">{{ p.estado }}</span>
               <span class="text-[11px]" style="color:#8ea9bf;">{{ p.fecha_registro }}</span>
               <a v-if="p.archivo_resolucion_url" :href="p.archivo_resolucion_url" target="_blank" class="pdf-link">
@@ -127,8 +148,11 @@ watch(identificador, fetchProblemas)
           </div>
           <!-- Problema -->
           <div class="font-semibold mb-3" style="color:#d0dde8;">{{ p.problema_identificado }}</div>
-          <!-- Solución + Responsable -->
-          <div class="grid grid-cols-2 gap-4" style="padding-top:12px; border-top:1px solid #19354d;">
+          <!-- Solución + Responsable (+ Fecha de cierre solo si está Resuelto) -->
+          <div
+            :class="p.estado === 'Resuelto' ? 'grid grid-cols-3 gap-4' : 'grid grid-cols-2 gap-4'"
+            style="padding-top:12px; border-top:1px solid #19354d;"
+          >
             <div>
               <div class="field-label">Solución propuesta</div>
               <div class="text-xs leading-relaxed" style="color:#c8dae7;">{{ p.solucion_propuesta }}</div>
@@ -136,6 +160,10 @@ watch(identificador, fetchProblemas)
             <div>
               <div class="field-label">Responsable</div>
               <div class="text-xs" style="color:#c8dae7;">{{ p.responsable }}</div>
+            </div>
+            <div v-if="p.estado === 'Resuelto'">
+              <div class="field-label">Fecha de cierre</div>
+              <div class="text-xs font-semibold" style="color:#00c9a7;">{{ p.fecha_cierre || '—' }}</div>
             </div>
           </div>
         </div>

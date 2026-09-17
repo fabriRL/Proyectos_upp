@@ -29,6 +29,16 @@ class ActividadController extends Controller
             ->orderBy('numero')
             ->get();
 
+        // Se recalcula el % Cumplimiento Programado en CADA lectura —
+        // depende de HOY(), así que un valor guardado ayer ya no sirve
+        // hoy, aunque nadie haya tocado la actividad. Se persiste el
+        // valor fresco de una vez, para que otros módulos que lean
+        // directo la columna (Resumen, Dashboard, Reporte General)
+        // también vean un dato razonablemente actualizado.
+        foreach ($actividades as $actividad) {
+            $this->refrescarCumplimientoProgramado($actividad);
+        }
+
         return response()->json($actividades);
     }
 
@@ -162,14 +172,12 @@ class ActividadController extends Controller
             |--------------------------------------------------------------------------
             | AVANCE
             |--------------------------------------------------------------------------
+            |
+            | "porcentaje_cumplimiento_programado" YA NO se acepta del
+            | formulario — se calcula solo, con fecha_inicio/fecha_fin/
+            | estado. Solo queda como input real "cumplimiento_real".
+            |
             */
-
-            'porcentaje_cumplimiento_programado' => [
-                'nullable',
-                'numeric',
-                'min:0',
-                'max:100',
-            ],
 
             'porcentaje_cumplimiento_real' => [
                 'nullable',
@@ -214,9 +222,6 @@ class ActividadController extends Controller
         |--------------------------------------------------------------------------
         */
 
-        $validado['porcentaje_cumplimiento_programado']
-            = $validado['porcentaje_cumplimiento_programado'] ?? 0;
-
         $validado['porcentaje_cumplimiento_real']
             = $validado['porcentaje_cumplimiento_real'] ?? 0;
 
@@ -239,6 +244,8 @@ class ActividadController extends Controller
         */
 
         $actividad = Actividad::create($validado);
+
+        $this->refrescarCumplimientoProgramado($actividad);
 
 
         /*
@@ -266,6 +273,8 @@ class ActividadController extends Controller
     */
     public function show(Actividad $actividad)
     {
+        $this->refrescarCumplimientoProgramado($actividad);
+
         $actividad->load([
             'proyecto',
             'componente',
@@ -420,14 +429,11 @@ class ActividadController extends Controller
             |--------------------------------------------------------------------------
             | AVANCE
             |--------------------------------------------------------------------------
+            |
+            | "porcentaje_cumplimiento_programado" ya no se acepta aquí
+            | tampoco — se recalcula siempre después de guardar.
+            |
             */
-
-            'porcentaje_cumplimiento_programado' => [
-                'nullable',
-                'numeric',
-                'min:0',
-                'max:100',
-            ],
 
             'porcentaje_cumplimiento_real' => [
                 'nullable',
@@ -498,12 +504,8 @@ class ActividadController extends Controller
 
         $actividad->update($validado);
 
+        $this->refrescarCumplimientoProgramado($actividad);
 
-        /*
-        |--------------------------------------------------------------------------
-        | RECARGAR RELACIONES
-        |--------------------------------------------------------------------------
-        */
 
         $actividad->load([
             'proyecto',
@@ -516,17 +518,6 @@ class ActividadController extends Controller
         return response()->json($actividad);
     }
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | ELIMINAR ACTIVIDAD
-    |--------------------------------------------------------------------------
-    |
-    | DELETE /api/actividades/{actividad}
-    |
-    | Como usamos SoftDeletes, no se elimina físicamente.
-    |
-    */
     public function destroy(Actividad $actividad)
     {
         $actividad->delete();
@@ -534,5 +525,63 @@ class ActividadController extends Controller
         return response()->json([
             'message' => 'Actividad eliminada correctamente.'
         ]);
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | % CUMPLIMIENTO PROGRAMADO — dato calculado, no editable a mano
+    |--------------------------------------------------------------------------
+    |
+    | Traducción exacta de la fórmula de Excel:
+    | =SI(O(T="";U="");"";SI(U<T;"";SI(O(W="Concluida";W="Cancelada");1;
+    |   SI(HOY()<T;0;MIN((HOY()-T+1)/(U-T+1);1)))))
+    |
+    | T = fecha_inicio, U = fecha_fin, W = estado.
+    |
+    | Se recalcula en CADA lectura (index/show) y después de cada
+    | escritura (store/update) — depende de HOY(), así que un valor
+    | guardado ayer no sirve hoy, igual que en Excel al reabrir el
+    | archivo.
+    |
+    */
+    private function calcularCumplimientoProgramado(Actividad $actividad): ?float
+    {
+        if (empty($actividad->fecha_inicio) || empty($actividad->fecha_fin)) {
+            return null;
+        }
+
+        $inicio = Carbon::parse($actividad->fecha_inicio)->startOfDay();
+        $fin = Carbon::parse($actividad->fecha_fin)->startOfDay();
+
+        if ($fin->lt($inicio)) {
+            return null;
+        }
+
+        if (in_array($actividad->estado, ['Concluida', 'Cancelada'], true)) {
+            return 100.0;
+        }
+
+        $hoy = Carbon::now()->startOfDay();
+
+        if ($hoy->lt($inicio)) {
+            return 0.0;
+        }
+
+        $duracionTotal = $inicio->diffInDays($fin) + 1;
+        $diasTranscurridos = $inicio->diffInDays($hoy) + 1;
+
+        $porcentaje = min($diasTranscurridos / $duracionTotal, 1) * 100;
+
+        return round($porcentaje, 2);
+    }
+
+    private function refrescarCumplimientoProgramado(Actividad $actividad): void
+    {
+        $nuevoValor = $this->calcularCumplimientoProgramado($actividad);
+
+        if ((float) $actividad->porcentaje_cumplimiento_programado !== (float) ($nuevoValor ?? 0)) {
+            $actividad->porcentaje_cumplimiento_programado = $nuevoValor;
+            $actividad->saveQuietly(); // no dispara updated_at/eventos extra
+        }
     }
 }

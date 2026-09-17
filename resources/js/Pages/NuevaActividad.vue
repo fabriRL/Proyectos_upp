@@ -38,6 +38,11 @@ const actividades = ref([])
 |--------------------------------------------------------------------------
 | Formulario
 |--------------------------------------------------------------------------
+|
+| "porcentaje_cumplimiento_programado" ya no vive aquí: se calcula solo
+| en el backend a partir de fecha_inicio/fecha_fin/estado (igual que
+| Excel), así que no tiene sentido pedirlo a mano en el formulario.
+|
 */
 
 const form = ref({
@@ -49,7 +54,6 @@ const form = ref({
     fecha_fin: '',
     duracion_dias: '',
     estado: 'Pendiente',
-    porcentaje_cumplimiento_programado: 0,
     porcentaje_cumplimiento_real: 0
 })
 
@@ -158,8 +162,13 @@ onMounted(cargarDatos)
 
 /*
 |--------------------------------------------------------------------------
-| Calcular duración
+| Calcular duración — campo bloqueado, solo lectura
 |--------------------------------------------------------------------------
+|
+| Se recalcula automáticamente cada vez que cambia fecha_inicio o
+| fecha_fin. El input está deshabilitado en el template para que
+| nadie pueda escribir un valor manual que no coincida con las fechas.
+|
 */
 
 function calcularDuracion() {
@@ -290,12 +299,6 @@ async function guardar() {
             estado:
                 form.value.estado,
 
-            porcentaje_cumplimiento_programado:
-                Number(
-                    form.value
-                        .porcentaje_cumplimiento_programado
-                ),
-
             porcentaje_cumplimiento_real:
                 Number(
                     form.value
@@ -335,7 +338,6 @@ async function guardar() {
             fecha_fin: '',
             duracion_dias: '',
             estado: 'Pendiente',
-            porcentaje_cumplimiento_programado: 0,
             porcentaje_cumplimiento_real: 0
 
         }
@@ -692,12 +694,13 @@ const actividadesPredecesoras = computed(() => {
                         </div>
 
 
-                        <!-- DURACIÓN -->
+                        <!-- DURACIÓN (calculada, bloqueada) -->
 
                         <div class="form-group">
 
                             <label>
                                 Duración
+                                <small class="label-hint">(calculada)</small>
                             </label>
 
                             <div class="input-suffix">
@@ -705,7 +708,10 @@ const actividadesPredecesoras = computed(() => {
                                 <input
                                     v-model="form.duracion_dias"
                                     type="number"
-                                    min="1"
+                                    disabled
+                                    readonly
+                                    tabindex="-1"
+                                    title="Se calcula automáticamente a partir de las fechas de inicio y fin."
                                 />
 
                                 <span>
@@ -713,6 +719,10 @@ const actividadesPredecesoras = computed(() => {
                                 </span>
 
                             </div>
+
+                            <small>
+                                Se calcula sola con las fechas de inicio y fin.
+                            </small>
 
                         </div>
 
@@ -734,36 +744,7 @@ const actividadesPredecesoras = computed(() => {
                     </div>
 
 
-                    <div class="form-grid">
-
-
-                        <!-- PROGRAMADO -->
-
-                        <div class="form-group">
-
-                            <label>
-                                Cumplimiento programado
-                            </label>
-
-                            <div class="range-row">
-
-                                <input
-                                    v-model.number="
-                                        form.porcentaje_cumplimiento_programado
-                                    "
-                                    type="range"
-                                    min="0"
-                                    max="100"
-                                    step="1"
-                                />
-
-                                <strong>
-                                    {{ form.porcentaje_cumplimiento_programado }}%
-                                </strong>
-
-                            </div>
-
-                        </div>
+                    <div class="form-grid form-grid-single">
 
 
                         <!-- REAL -->
@@ -791,6 +772,11 @@ const actividadesPredecesoras = computed(() => {
                                 </strong>
 
                             </div>
+
+                            <small>
+                                El % programado se calcula automáticamente
+                                según las fechas y el estado de la actividad.
+                            </small>
 
                         </div>
 
@@ -912,6 +898,10 @@ const actividadesPredecesoras = computed(() => {
     gap: 16px;
 }
 
+.form-grid-single {
+    grid-template-columns: 1fr;
+}
+
 .form-group {
     display: flex;
     flex-direction: column;
@@ -923,6 +913,9 @@ const actividadesPredecesoras = computed(() => {
 }
 
 .form-group label {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
     color: #b4c9d9;
     font-size: .72rem;
     font-weight: 700;
@@ -930,6 +923,12 @@ const actividadesPredecesoras = computed(() => {
 
 .form-group label span {
     color: #f28b82;
+}
+
+.label-hint {
+    color: #5f7c91;
+    font-size: .64rem;
+    font-weight: 600;
 }
 
 .form-group input,
@@ -950,6 +949,13 @@ const actividadesPredecesoras = computed(() => {
     border-color: #00c9a7;
 }
 
+.form-group input:disabled {
+    background: #0c2334;
+    color: #7893a7;
+    cursor: not-allowed;
+    opacity: .85;
+}
+
 .form-group small {
     color: #718da3;
     font-size: .67rem;
@@ -966,6 +972,10 @@ const actividadesPredecesoras = computed(() => {
 
 .input-suffix input {
     border-radius: 6px 0 0 6px;
+}
+
+.input-suffix input:disabled {
+    border-right: 0;
 }
 
 .input-suffix span {

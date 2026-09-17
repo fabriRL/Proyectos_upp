@@ -74,6 +74,7 @@ const sBtnSave = { padding: '8px 16px', borderRadius: '6px', border: 'none', bac
 
 <template>
   <Teleport to="body">
+    <Transition name="modal-fade">
     <div v-if="show" :style="sOverlay" @click.self="cerrar">
       <div :style="sBox">
         <h2 style="margin:0 0 4px;font-size:1.1rem;">Nuevo objeto de gasto</h2>
@@ -117,5 +118,6 @@ const sBtnSave = { padding: '8px 16px', borderRadius: '6px', border: 'none', bac
         </form>
       </div>
     </div>
+    </Transition>
   </Teleport>
 </template>

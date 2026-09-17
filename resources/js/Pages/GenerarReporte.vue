@@ -141,59 +141,65 @@ onMounted(cargarReporte)
             <tr>
               <th rowspan="2">N°</th>
               <th rowspan="2">Código</th>
+              <th rowspan="2">Código SISINWEB</th>
               <th rowspan="2">Proyecto</th>
-              <th rowspan="2">Entidad Ejec. / Supervisión</th>
+              <th rowspan="2">Norma de Financiamiento</th>
               <th rowspan="2">Monto D.S. (Bs)</th>
-              <th colspan="10" class="group-header-contratos">
-                Datos de Contratos
+              <th rowspan="2">Av. Físico (SISIN)</th>
+              <th rowspan="2">Av. Financiero (SISIN)</th>
+              <th rowspan="2">Estado de Situación</th>
+              <th rowspan="2">Inicio Contractual</th>
+              <th rowspan="2">Entrega Provisional</th>
+              <th rowspan="2">Entrega Definitiva</th>
+              <th rowspan="2">Plazo (Días)</th>
+              <th colspan="22" class="group-header-contratos">
+                Contratos y Planillas
                 <span class="group-tag">Desde Contratos</span>
               </th>
-              <th rowspan="2">Últ. Modificaciones</th>
-              <th rowspan="2" class="col-pendiente-th">Últ. Acciones (Resoluciones)</th>
-              <th rowspan="2" class="col-pendiente-th">Planilla Pend. (Contratista)</th>
-              <th rowspan="2" class="col-pendiente-th">Monto Pend. Contratista</th>
-              <th rowspan="2" class="col-pendiente-th">Planilla Pend. (Supervisión)</th>
-              <th rowspan="2" class="col-pendiente-th">Monto Pend. Supervisión</th>
-              <th rowspan="2" class="col-pendiente-th">Increm. D.S. 5321</th>
-              <th rowspan="2" class="col-pendiente-th">Anticipo D.S. 5406</th>
-              <th rowspan="2" class="col-pendiente-th">Asignación SIGEP</th>
               <th rowspan="2">Problemas</th>
               <th rowspan="2">Acciones</th>
               <th rowspan="2">Líneas y Capacidades</th>
+              <th rowspan="2">Result. Impacto Socioeconómico</th>
+              <th rowspan="2">Observaciones</th>
               <th rowspan="2">Días Restantes</th>
               <th rowspan="2">Semáforo</th>
             </tr>
             <tr>
-              <th class="sub-header-contratos">Contratistas</th>
-              <th class="sub-header-contratos">Contrato Original (Bs)</th>
-              <th class="sub-header-contratos">Según Modificaciones (Bs)</th>
+              <th class="sub-header-contratos">Empresa Contratista</th>
+              <th class="sub-header-contratos">Monto Original Contratista (Bs)</th>
+              <th class="sub-header-contratos">Monto Modif. Contratista (Bs)</th>
+              <th class="sub-header-contratos">Empresa Supervisión</th>
+              <th class="sub-header-contratos">Monto Original Supervisión (Bs)</th>
+              <th class="sub-header-contratos">Monto Modif. Supervisión (Bs)</th>
               <th class="sub-header-contratos">Orden Proceder</th>
               <th class="sub-header-contratos">Concl. Prevista</th>
-              <th class="sub-header-contratos">Avance Físico</th>
-              <th class="sub-header-contratos">Avance Financiero</th>
-              <th class="sub-header-contratos">Entrega Provisional</th>
-              <th class="sub-header-contratos">Entrega Definitiva</th>
-              <th class="sub-header-contratos">Estado General</th>
+              <th class="sub-header-contratos">Av. Infraestr.</th>
+              <th class="sub-header-contratos">Av. Equipam.</th>
+              <th class="sub-header-contratos">Av. Insumos/P.M.</th>
+              <th class="sub-header-contratos">Últ. Modificaciones</th>
+              <th class="sub-header-contratos">Últ. Acciones (Resoluciones)</th>
+              <th class="sub-header-contratos">Planilla Pend. (Contratista)</th>
+              <th class="sub-header-contratos">Monto Pend. Contratista</th>
+              <th class="sub-header-contratos">Planilla Pend. (Supervisión)</th>
+              <th class="sub-header-contratos">Monto Pend. Supervisión</th>
+              <th class="sub-header-contratos">Monto Req. hasta Conclusión</th>
+              <th class="sub-header-contratos">Increm. D.S. 5321</th>
+              <th class="sub-header-contratos">Anticipo D.S. 5406</th>
+              <th class="sub-header-contratos">Presup. Asignado Gestión</th>
+              <th class="sub-header-contratos">Asignación SIGEP</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="p in proyectos" :key="p.codigo">
               <td class="col-numero">{{ p.n }}</td>
               <td class="font-mono" style="color:#8ea9bf;">{{ p.codigo }}</td>
+              <td class="font-mono" style="color:#8ea9bf;">{{ p.numero_sisin_web || '—' }}</td>
               <td class="text-left" style="color:#e4f0f7;font-weight:600;">{{ p.nombre }}</td>
-              <td class="text-left" style="color:#b9cadb;">{{ p.empresa_supervision || '—' }}</td>
+              <td class="text-left" style="color:#b9cadb;">{{ p.norma_financiamiento || '—' }}</td>
               <td class="money">{{ Number(p.monto_decreto_vigente).toLocaleString('es-BO', { minimumFractionDigits: 2 }) }}</td>
-
-              <td class="text-left col-contrato" style="color:#b9cadb;">{{ p.contratistas }}</td>
-              <td class="money col-contrato">{{ Number(p.monto_original).toLocaleString('es-BO', { minimumFractionDigits: 2 }) }}</td>
-              <td class="money col-contrato">{{ Number(p.monto_modificaciones).toLocaleString('es-BO', { minimumFractionDigits: 2 }) }}</td>
-              <td class="col-contrato">{{ p.fecha_orden_proceder || '—' }}</td>
-              <td class="col-contrato">{{ p.fecha_conclusion_prevista || '—' }}</td>
-              <td class="money col-contrato">{{ p.avance_fisico }}%</td>
-              <td class="money col-contrato">{{ p.avance_financiero }}%</td>
-              <td class="col-contrato">{{ p.fecha_entrega_provisional || 'En proceso' }}</td>
-              <td class="col-contrato">{{ p.fecha_entrega_definitiva || 'En proceso' }}</td>
-              <td class="col-contrato">
+              <td class="money">{{ p.avance_fisico }}%</td>
+              <td class="money">{{ p.avance_financiero }}%</td>
+              <td>
                 <span
                   class="badge-estado"
                   :style="{ color: badgeEstado(p.estado_general).color, background: badgeEstado(p.estado_general).bg, borderColor: badgeEstado(p.estado_general).border }"
@@ -201,20 +207,39 @@ onMounted(cargarReporte)
                   {{ p.estado_general }}
                 </span>
               </td>
+              <td>{{ p.fecha_inicio_contractual || '—' }}</td>
+              <td>{{ p.fecha_entrega_provisional || '—' }}</td>
+              <td>{{ p.fecha_entrega_definitiva || '—' }}</td>
+              <td>{{ p.plazo_dias || '—' }}</td>
 
-              <td class="text-left" style="color:#b9cadb;max-width:180px;">{{ p.ultimas_modificaciones || '—' }}</td>
+              <td class="text-left col-contrato" style="color:#b9cadb;">{{ p.contratistas }}</td>
+              <td class="money col-contrato">{{ Number(p.monto_original).toLocaleString('es-BO', { minimumFractionDigits: 2 }) }}</td>
+              <td class="money col-contrato">{{ Number(p.monto_modificaciones).toLocaleString('es-BO', { minimumFractionDigits: 2 }) }}</td>
+              <td class="text-left col-contrato" style="color:#b9cadb;">{{ p.empresa_supervision || '—' }}</td>
+              <td class="money col-contrato">{{ Number(p.monto_original_supervision).toLocaleString('es-BO', { minimumFractionDigits: 2 }) }}</td>
+              <td class="money col-contrato">{{ Number(p.monto_modificaciones_supervision).toLocaleString('es-BO', { minimumFractionDigits: 2 }) }}</td>
+              <td class="col-contrato">{{ p.fecha_orden_proceder || '—' }}</td>
+              <td class="col-contrato">{{ p.fecha_conclusion_prevista || '—' }}</td>
+              <td class="col-contrato">{{ p.avance_fisico_infraestructura ?? '—' }}</td>
+              <td class="col-contrato">{{ p.avance_fisico_equipamiento ?? '—' }}</td>
+              <td class="col-contrato">{{ p.avance_insumos_puesta_marcha ?? '—' }}</td>
+              <td class="text-left col-contrato" style="color:#b9cadb;max-width:180px;">{{ p.ultimas_modificaciones || '—' }}</td>
               <td class="col-pendiente">{{ p.ultimas_acciones || '—' }}</td>
               <td class="col-pendiente">{{ p.descripcion_planilla_pendiente_contratista || '—' }}</td>
               <td class="col-pendiente">{{ p.monto_planilla_pendiente_contratista || '—' }}</td>
               <td class="col-pendiente">{{ p.descripcion_planilla_pendiente_supervision || '—' }}</td>
               <td class="col-pendiente">{{ p.monto_planilla_pendiente_supervision || '—' }}</td>
+              <td class="col-pendiente">{{ p.monto_requerido_hasta_conclusion || '—' }}</td>
               <td class="col-pendiente">{{ p.incremento_ds_5321 || '—' }}</td>
               <td class="col-pendiente">{{ p.anticipo_adicional_ds_5406 || '—' }}</td>
+              <td class="col-pendiente">{{ p.presupuesto_gestion_actual || '—' }}</td>
               <td class="col-pendiente">{{ p.tiene_sigep === true ? 'Sí' : p.tiene_sigep === false ? 'No' : '—' }}</td>
 
               <td class="text-left" style="color:#b9cadb;max-width:160px;">{{ p.problemas || '—' }}</td>
               <td class="text-left" style="color:#b9cadb;max-width:160px;">{{ p.acciones || '—' }}</td>
               <td class="text-left" style="color:#b9cadb;max-width:200px;">{{ p.lineas_capacidades || '—' }}</td>
+              <td class="text-left" style="color:#b9cadb;max-width:200px;">{{ p.resultado_impacto_socioeconomico || '—' }}</td>
+              <td class="text-left" style="color:#b9cadb;max-width:200px;">{{ p.observaciones || '—' }}</td>
 
               <td>{{ p.dias_restantes !== null ? p.dias_restantes + ' días' : '—' }}</td>
               <td>

@@ -43,11 +43,23 @@ class ProblemaController extends Controller
             ],
         ]);
 
+        // Ambas validaciones de "Resuelto" van ANTES de tocar la base de
+        // datos: si el estado final es Resuelto, exige PDF y fecha de
+        // cierre; si falta cualquiera de los dos, no se crea el registro.
         if (($validado['estado'] ?? null) === 'Resuelto' && !$request->hasFile('archivo_resolucion')) {
             return response()->json([
                 'message' => 'No se puede marcar como Resuelto sin adjuntar el documento de resolución.',
                 'errors' => [
                     'estado' => ['Debes adjuntar el PDF de resolución antes de marcar este problema como Resuelto.'],
+                ],
+            ], 422);
+        }
+
+        if (($validado['estado'] ?? null) === 'Resuelto' && empty($validado['fecha_cierre'] ?? null)) {
+            return response()->json([
+                'message' => 'No se puede marcar como Resuelto sin indicar la fecha de cierre.',
+                'errors' => [
+                    'fecha_cierre' => ['Debes indicar la fecha de cierre antes de marcar este problema como Resuelto.'],
                 ],
             ], 422);
         }
@@ -90,12 +102,25 @@ class ProblemaController extends Controller
 
         $estadoFinal = $validado['estado'] ?? $problema->estado;
         $tendraArchivo = $problema->archivo_resolucion_path || $request->hasFile('archivo_resolucion');
+        $tendraFechaCierre = $validado['fecha_cierre'] ?? $problema->fecha_cierre;
 
+        // Igual que en store(): ambas validaciones van ANTES de
+        // $problema->update(), para no dejar el registro modificado si
+        // falta el PDF o la fecha de cierre.
         if ($estadoFinal === 'Resuelto' && !$tendraArchivo) {
             return response()->json([
                 'message' => 'No se puede marcar como Resuelto sin adjuntar el documento de resolución.',
                 'errors' => [
                     'estado' => ['Debes adjuntar el PDF de resolución antes de marcar este problema como Resuelto.'],
+                ],
+            ], 422);
+        }
+
+        if ($estadoFinal === 'Resuelto' && empty($tendraFechaCierre)) {
+            return response()->json([
+                'message' => 'No se puede marcar como Resuelto sin indicar la fecha de cierre.',
+                'errors' => [
+                    'fecha_cierre' => ['Debes indicar la fecha de cierre antes de marcar este problema como Resuelto.'],
                 ],
             ], 422);
         }

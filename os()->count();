@@ -1,0 +1,12 @@
+[90m= [39m[34;4mApp\Models\Usuario[39;24m {#8252
+    [34mid_usuario[39m: [35m1[39m,
+    [34mid_rol[39m: [35m1[39m,
+    [34mnombre[39m: [32m"[39m[32mAdministrador de Prueba[39m[32m"[39m,
+    [34mcorreo_electronico[39m: [32m"[39m[32madmin@proyectosupp.test[39m[32m"[39m,
+    #[33mcontrasena[39m: [32m"[39m\$[32m2y[39m\$[32m12[39m\$[32mPzQayuPC85Uc1XTQ8HF7b.vpi96yxhcNnU3n3hH0xV0Mc36xJthka[39m[32m"[39m,
+    [34mesta_activo[39m: [36mtrue[39m,
+    [34multimo_inicio_sesion[39m: [32m"[39m[32m2026-09-15 18:34:03[39m[32m"[39m,
+    [34mcreado_en[39m: [32m"[39m[32m2026-08-21 02:17:54.117538[39m[32m"[39m,
+    [34mactualizado_en[39m: [32m"[39m[32m2026-08-21 02:17:54.117538[39m[32m"[39m,
+    [34meliminado_en[39m: [36mnull[39m,
+  }

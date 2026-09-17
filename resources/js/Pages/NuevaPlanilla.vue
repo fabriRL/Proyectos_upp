@@ -165,6 +165,7 @@ const sBtnSave = {
 
 <template>
   <Teleport to="body">
+    <Transition name="modal-fade">
     <div v-if="show" :style="sOverlay" @click.self="cerrar">
       <div :style="sBox">
         <h2 style="margin:0 0 4px;font-size:1.1rem;">Nueva planilla</h2>
@@ -207,10 +208,12 @@ const sBtnSave = {
 
             <form @submit.prevent="onSubmit">
 
+              <Transition name="fade-slide" mode="out-in">
+
               <!-- ==================================================
                    PASO 1 — Periodo y fechas
               =================================================== -->
-              <div v-show="currentStep === 1" :style="sGrid">
+              <div v-if="currentStep === 1" :style="sGrid" key="paso-1">
                 <div :style="sField">
                   <label :style="sLabel">Periodo desde</label>
                   <input v-model="form.periodo_desde" type="date" :style="sInput" />
@@ -259,7 +262,7 @@ const sBtnSave = {
               <!-- ==================================================
                    PASO 2 — Montos y seguimiento
               =================================================== -->
-              <div v-show="currentStep === 2" :style="sGrid">
+              <div v-else :style="sGrid" key="paso-2">
                 <div :style="sField">
                   <label :style="sLabel">Importe del trabajo ejecutado (Bs)</label>
                   <input v-model.number="form.monto_certificado" type="number" step="0.01" min="0" :style="sInput" placeholder="0.00" />
@@ -299,6 +302,8 @@ const sBtnSave = {
                 </div>
               </div>
 
+              </Transition>
+
               <div :style="sActions">
                 <button
                   v-if="currentStep === 1"
@@ -328,6 +333,7 @@ const sBtnSave = {
         </div>
       </div>
     </div>
+    </Transition>
   </Teleport>
 </template>
 

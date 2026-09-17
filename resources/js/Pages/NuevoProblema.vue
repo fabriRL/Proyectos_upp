@@ -10,11 +10,10 @@ const props = defineProps({
   proyectoId: { type: [Number, String], required: true },
   guardando: { type: Boolean, default: false },
 })
-
+  
 const form = ref({
   fecha_registro: new Date().toISOString().slice(0, 10),
   problema_identificado: '',
-  impacto: 'Bajo',
   solucion_propuesta: '',
   responsable: '',
   estado: 'Pendiente',
@@ -127,18 +126,7 @@ function cerrar() {
               Si eliges una actividad, esta pasará a "Retrasada" automáticamente mientras el problema siga abierto.
             </p>
           </div>
-          <div class="form-group">
-            <label>Impacto</label>
-            <div class="input-wrap">
-              <i class="ti ti-chart-bar"></i>
-              <select v-model="form.impacto">
-                <option>Bajo</option>
-                <option>Alto</option>
-                <option>Crítico</option>
-              </select>
-            </div>
-          </div>
-          <div class="form-group">
+          <div class="form-group form-full">
             <label>Responsable</label>
             <div class="input-wrap">
               <i class="ti ti-user"></i>

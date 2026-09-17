@@ -49,22 +49,26 @@ class ReporteGeneralController extends Controller
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Reporte General');
 
-        // Orden reagrupado: Monto D.S. queda junto a Entidad, y TODAS las
-        // columnas que vienen de Contratos quedan consecutivas (F a O),
-        // para poder resaltarlas como un solo bloque de color.
+        // Las 11 primeras columnas son datos propios del proyecto; luego
+        // viene un bloque de 22 columnas consecutivas (L a AG) que vienen
+        // de Contratos y Planillas, resaltadas como un solo bloque de color.
         $encabezados = [
-            'N°', 'Código', 'Proyecto', 'Entidad Ejecutora / Empresa de Supervisión', 'Monto del D.S. (Bs)',
-            'Contratistas', 'Monto Contrato Original (Bs)', 'Monto según Modificaciones (Bs)',
-            'Orden de Proceder (más antigua)', 'Conclusión Prevista (más reciente)',
-            'Avance Físico (%)', 'Avance Financiero (%)',
-            'Entrega Provisional', 'Entrega Definitiva', 'Estado General',
+            'N°', 'Código', 'Código SISINWEB', 'Proyecto', 'Norma de Financiamiento', 'Monto del D.S. (Bs)',
+            'Avance Físico (SISIN) (%)', 'Avance Financiero (SISIN) (%)', 'Estado de Situación',
+            'Inicio Contractual', 'Entrega Provisional', 'Entrega Definitiva', 'Plazo (Días)',
+            'Empresa Contratista', 'Monto Original Contratista (Bs)', 'Monto Modif. Contratista (Bs)',
+            'Empresa Supervisión', 'Monto Original Supervisión (Bs)', 'Monto Modif. Supervisión (Bs)',
+            'Orden de Proceder', 'Conclusión Prevista',
             'Avance Físico Infraestructura (%)', 'Avance Físico Equipamiento (%)', 'Avance Insumos / Puesta en Marcha (%)',
             'Últimas Modificaciones Realizadas',
             'Últimas Acciones Realizadas (Resoluciones)',
             'Descripción Planilla Pendiente (Contratista)', 'Monto Pendiente Contratista (Bs)',
             'Descripción Planilla Pendiente (Supervisión)', 'Monto Pendiente Supervisión (Bs)',
-            'Increm. D.S. 5321 (Bs)', 'Anticipo Adic. D.S. 5406 (Bs)', 'Asignación SIGEP',
+            'Monto Requerido hasta Conclusión (Bs)',
+            'Increm. D.S. 5321 (Bs)', 'Anticipo Adic. D.S. 5406 (Bs)',
+            'Presupuesto Asignado Gestión (Bs)', 'Asignación SIGEP',
             'Problemas', 'Acciones', 'Líneas y Capacidades de Producción',
+            'Resultado / Impacto Socioeconómico', 'Observaciones',
             'Días Restantes', 'Semáforo',
         ];
 
@@ -112,9 +116,11 @@ class ReporteGeneralController extends Controller
         ]);
         $sheet->getRowDimension($filaEncabezados)->setRowHeight(34);
 
-        // Resalta el bloque de columnas F–O (Contratistas...Estado
-        // General) — mismas 10 columnas que en pantalla vienen de Contratos.
-        $sheet->getStyle("F{$filaEncabezados}:O{$filaEncabezados}")->applyFromArray([
+        // Resalta el bloque de 22 columnas (N a AI) que vienen de
+        // Contratos y Planillas — mismo bloque que en pantalla.
+        $colInicioGrupo = Coordinate::stringFromColumnIndex(14);
+        $colFinGrupo = Coordinate::stringFromColumnIndex(35);
+        $sheet->getStyle("{$colInicioGrupo}{$filaEncabezados}:{$colFinGrupo}{$filaEncabezados}")->applyFromArray([
             'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '2B6E96']],
         ]);
 
@@ -122,25 +128,28 @@ class ReporteGeneralController extends Controller
         $filaInicioDatos = $filaEncabezados + 1;
         $fila = $filaInicioDatos;
 
-        $columnasMonto = [5, 7, 8, 22, 24, 25, 26];
-        $columnasPorcentaje = [11, 12, 16, 17, 18];
-        $columnasTextoLargo = [3, 4, 6, 19, 20, 21, 23, 28, 29, 30];
+        $columnasMonto = [6, 15, 16, 18, 19, 28, 30, 31, 32, 34];
+        $columnasPorcentaje = [7, 8, 22, 23, 24];
+        $columnasTextoLargo = [4, 5, 14, 17, 25, 26, 27, 29, 36, 37, 38, 39, 40];
 
         foreach ($reporte['proyectos'] as $p) {
             $filaDatos = [
-                $p['n'], $p['codigo'], $p['nombre'], $p['empresa_supervision'] ?? '—', $p['monto_decreto_vigente'],
+                $p['n'], $p['codigo'], $p['numero_sisin_web'] ?? '—', $p['nombre'], $p['norma_financiamiento'] ?? '—', $p['monto_decreto_vigente'],
+                $p['avance_fisico'], $p['avance_financiero'], $p['estado_general'],
+                $p['fecha_inicio_contractual'] ?? '—', $p['fecha_entrega_provisional'] ?? '—', $p['fecha_entrega_definitiva'] ?? '—', $p['plazo_dias'] ?? '—',
                 $p['contratistas'], $p['monto_original'], $p['monto_modificaciones'],
+                $p['empresa_supervision'] ?? '—', $p['monto_original_supervision'], $p['monto_modificaciones_supervision'],
                 $p['fecha_orden_proceder'] ?? '—', $p['fecha_conclusion_prevista'] ?? '—',
-                $p['avance_fisico'], $p['avance_financiero'],
-                $p['fecha_entrega_provisional'] ?? 'En proceso', $p['fecha_entrega_definitiva'] ?? 'En proceso', $p['estado_general'],
                 $p['avance_fisico_infraestructura'], $p['avance_fisico_equipamiento'], $p['avance_insumos_puesta_marcha'],
                 $p['ultimas_modificaciones'] ?? '—',
                 $p['ultimas_acciones'] ?? '—',
                 $p['descripcion_planilla_pendiente_contratista'] ?? '—', $p['monto_planilla_pendiente_contratista'],
                 $p['descripcion_planilla_pendiente_supervision'] ?? '—', $p['monto_planilla_pendiente_supervision'],
-                $p['incremento_ds_5321'], $p['anticipo_adicional_ds_5406'],
-                $p['tiene_sigep'] === true ? 'Sí' : ($p['tiene_sigep'] === false ? 'No' : '—'),
+                $p['monto_requerido_hasta_conclusion'] ?? 0,
+                $p['incremento_ds_5321'], $p['anticipo_adicional_ds_5406'] ?? '—',
+                $p['presupuesto_gestion_actual'], $p['tiene_sigep'] === true ? 'Sí' : ($p['tiene_sigep'] === false ? 'No' : '—'),
                 $p['problemas'] ?? '—', $p['acciones'] ?? '—', $p['lineas_capacidades'] ?? '—',
+                $p['resultado_impacto_socioeconomico'] ?? '—', $p['observaciones'] ?? '—',
                 $p['dias_restantes'] ?? '—', $p['semaforo']['texto'],
             ];
 
@@ -154,7 +163,7 @@ class ReporteGeneralController extends Controller
             }
 
             // Franja azul clara en las columnas de Contratos, en cada fila.
-            $sheet->getStyle("F{$fila}:O{$fila}")->applyFromArray([
+            $sheet->getStyle("{$colInicioGrupo}{$fila}:{$colFinGrupo}{$fila}")->applyFromArray([
                 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'E4F0FB']],
             ]);
 
@@ -261,9 +270,11 @@ class ReporteGeneralController extends Controller
         $proyectos = Proyecto::with([
             'contratos' => fn ($q) => $q->where('activo', true),
             'contratos.modificaciones',
+            'contratos.planillas',
             'decretosSupremos',
             'problemas',
             'componentes',
+            'partidasPresupuestarias',
         ])->get();
 
         $todosContratos = $proyectos->flatMap->contratos;
@@ -304,16 +315,47 @@ class ReporteGeneralController extends Controller
             $sumaIncrementos = (float) $p->decretosSupremos->sum('incremento');
             $montoDecretoVigente = $montoBaseDecreto + $sumaIncrementos;
 
-            $montoOriginal = (float) $contratos->sum('monto_vigente_original');
-            $montoModificaciones = $montoVigenteProyecto - $montoOriginal;
+            $contratosObra = $contratos->filter(fn ($c) => $c->tipo_contrato !== 'Supervisión');
+            $contratosSupervision = $contratos->filter(fn ($c) => $c->tipo_contrato === 'Supervisión');
 
-            $contratistas = $contratos->pluck('contratista')->filter()->unique()->implode(', ');
+            $montoOriginal = (float) $contratosObra->sum('monto_vigente_original');
+            $montoModificaciones = (float) $contratosObra->sum('monto_vigente') - $montoOriginal;
 
-            $fechaProvisional = $this->fechaEntregaProyecto($contratos, 'fecha_entrega_provisional');
-            $fechaDefinitiva = $this->fechaEntregaProyecto($contratos, 'fecha_entrega_definitiva');
+            $montoOriginalSupervision = (float) $contratosSupervision->sum('monto_vigente_original');
+            $montoModificacionesSupervision = (float) $contratosSupervision->sum('monto_vigente') - $montoOriginalSupervision;
+
+            $contratistas = $contratosObra->pluck('contratista')->filter()->unique()->implode(', ');
+            $empresaSupervision = $contratosSupervision->pluck('contratista')->filter()->unique()->implode(', ');
+
+            // Si ningún contrato tiene su fecha de entrega propia cargada
+            // (la mayoría de los casos: solo 7 de 31 contratos la tienen),
+            // se usa fecha_conclusion_actual del proyecto como respaldo —
+            // esa sí está cargada en casi todos los proyectos.
+            $fechaConclusionActualProyecto = $p->fecha_conclusion_actual
+                ? Carbon::parse($p->fecha_conclusion_actual)->format('d/m/Y')
+                : null;
+
+            $fechaProvisional = $this->fechaEntregaProyecto($contratos, 'fecha_entrega_provisional') ?? $fechaConclusionActualProyecto;
+            $fechaDefinitiva = $this->fechaEntregaProyecto($contratos, 'fecha_entrega_definitiva') ?? $fechaConclusionActualProyecto;
+
+            // Se agrega para que se entienda de dónde sale el Plazo (Días):
+            // Inicio Contractual + Plazo ≈ Conclusión Prevista/Entrega. Sin
+            // esta fecha, "Entrega Provisional" y "Entrega Definitiva"
+            // repetían el mismo valor (fecha_conclusion_actual) sin
+            // contexto de cuándo arrancó el contrato.
+            $fechaInicioContractual = $p->fecha_inicio_contractual
+                ? Carbon::parse($p->fecha_inicio_contractual)->format('d/m/Y')
+                : null;
 
             $fechaOrdenProceder = $contratos->pluck('fecha_orden_proceder')->filter()->min();
             $fechaConclusionPrevista = $contratos->pluck('fecha_conclusion_prevista')->filter()->max();
+
+            // Igual que las fechas de entrega: el plazo del contrato
+            // (plazo_dias) solo está cargado en 14 de 31 contratos, mientras
+            // que plazo_contractual_actual_dias del proyecto sí está en 26
+            // de 27 — se usa como respaldo.
+            $plazoDias = $contratos->pluck('plazo_dias')->filter()->max()
+                ?? $p->plazo_contractual_actual_dias;
 
             $todasModificaciones = $contratos->flatMap->modificaciones;
             $ultimaModificacion = $todasModificaciones
@@ -323,6 +365,9 @@ class ReporteGeneralController extends Controller
                 ? $ultimaModificacion->tipo_modificacion . ' — ' .
                   Carbon::parse($ultimaModificacion->fecha_firma_documento ?? $ultimaModificacion->creado_en)->format('d/m/Y')
                 : null;
+            // "Últimas acciones" es la descripción (resolución) de esa
+            // misma última modificación — no es una fuente distinta.
+            $ultimasAcciones = $ultimaModificacion->descripcion ?? null;
 
             $problemaAbierto = $p->problemas
                 ->where('estado', '!=', 'Resuelto')
@@ -334,17 +379,42 @@ class ReporteGeneralController extends Controller
                 ->filter()
                 ->implode(' | ');
 
+            $pendienteContratista = $this->planillasPendientes($contratosObra);
+            $pendienteSupervision = $this->planillasPendientes($contratosSupervision);
+
+            $montoRequeridoConclusion = round((float) $contratos->sum('saldo_por_pagar'), 2);
+
+            // Incremento D.S. 5321: se suma el campo "incremento" de los
+            // decretos del proyecto cuyo número de decreto contiene "5321"
+            // (un proyecto puede tener ese decreto registrado más de una vez).
+            $incrementoDs5321 = (float) $p->decretosSupremos
+                ->filter(fn ($d) => str_contains($d->numero_decreto ?? '', '5321'))
+                ->sum('incremento');
+
+            // "Presupuesto Aprobado (SIGEP)" ya existe en Programación
+            // Financiera — sumado por proyecto responde a la vez el monto
+            // asignado en la gestión y si el proyecto cuenta con esa
+            // asignación en SIGEP.
+            $presupuestoGestionActual = (float) $p->partidasPresupuestarias->sum('presupuesto_aprobado');
+            $tieneSigep = $presupuestoGestionActual > 0;
+
             return [
                 'n' => $i + 1,
                 'codigo' => $p->codigo,
+                'numero_sisin_web' => $p->numero_sisin_web,
                 'nombre' => $p->nombre,
-                'empresa_supervision' => $p->entidad_ejecutora,
+                'norma_financiamiento' => $p->norma_financiador,
+                'empresa_supervision' => $empresaSupervision ?: null,
                 'contratistas' => $contratistas ?: '—',
                 'monto_decreto_vigente' => round($montoDecretoVigente, 2),
                 'monto_original' => round($montoOriginal, 2),
                 'monto_modificaciones' => round($montoModificaciones, 2),
+                'monto_original_supervision' => round($montoOriginalSupervision, 2),
+                'monto_modificaciones_supervision' => round($montoModificacionesSupervision, 2),
+                'fecha_inicio_contractual' => $fechaInicioContractual,
                 'fecha_orden_proceder' => $fechaOrdenProceder ? Carbon::parse($fechaOrdenProceder)->format('d/m/Y') : null,
                 'fecha_conclusion_prevista' => $fechaConclusionPrevista ? Carbon::parse($fechaConclusionPrevista)->format('d/m/Y') : null,
+                'plazo_dias' => $plazoDias,
                 'avance_fisico' => $avanceFisico,
                 'avance_financiero' => $avanceFinanciero,
                 'avance_fisico_infraestructura' => null,
@@ -353,14 +423,18 @@ class ReporteGeneralController extends Controller
                 'fecha_entrega_provisional' => $fechaProvisional,
                 'fecha_entrega_definitiva' => $fechaDefinitiva,
                 'ultimas_modificaciones' => $ultimasModificaciones,
-                'ultimas_acciones' => null,
-                'descripcion_planilla_pendiente_contratista' => null,
-                'monto_planilla_pendiente_contratista' => null,
-                'descripcion_planilla_pendiente_supervision' => null,
-                'monto_planilla_pendiente_supervision' => null,
-                'incremento_ds_5321' => null,
+                'ultimas_acciones' => $ultimasAcciones,
+                'descripcion_planilla_pendiente_contratista' => $pendienteContratista['descripcion'],
+                'monto_planilla_pendiente_contratista' => $pendienteContratista['monto'],
+                'descripcion_planilla_pendiente_supervision' => $pendienteSupervision['descripcion'],
+                'monto_planilla_pendiente_supervision' => $pendienteSupervision['monto'],
+                'monto_requerido_hasta_conclusion' => $montoRequeridoConclusion,
+                'incremento_ds_5321' => round($incrementoDs5321, 2),
                 'anticipo_adicional_ds_5406' => null,
-                'tiene_sigep' => null,
+                'presupuesto_gestion_actual' => round($presupuestoGestionActual, 2),
+                'tiene_sigep' => $tieneSigep,
+                'resultado_impacto_socioeconomico' => $p->resultado_impacto_socioeconomico,
+                'observaciones' => $p->observaciones,
                 'problemas' => $problemaAbierto->problema_identificado ?? null,
                 'acciones' => $problemaAbierto->solucion_propuesta ?? null,
                 'lineas_capacidades' => $lineasCapacidades ?: null,
@@ -381,20 +455,45 @@ class ReporteGeneralController extends Controller
         ];
     }
 
+    // Recorre las planillas de un grupo de contratos (Contratista o
+    // Supervisión) y devuelve la descripción de la planilla pendiente más
+    // reciente junto con la suma de TODO lo pendiente de cobro del grupo.
+    // "Pendiente" = líquido pagable que SIGEP todavía no pagó.
+    private function planillasPendientes($contratos): array
+    {
+        $pendientes = $contratos->flatMap->planillas
+            ->map(function ($planilla) {
+                $diferencia = round((float) $planilla->liquido_pagable - (float) $planilla->importe_pagado_sigep, 2);
+                return $diferencia > 0 ? ['planilla' => $planilla, 'monto' => $diferencia] : null;
+            })
+            ->filter();
+
+        if ($pendientes->isEmpty()) {
+            return ['descripcion' => 'Al día', 'monto' => 0];
+        }
+
+        $masReciente = $pendientes->sortByDesc(fn ($item) => $item['planilla']->periodo_hasta)->first();
+
+        return [
+            'descripcion' => 'Planilla N° ' . $masReciente['planilla']->numero
+                . ' (al ' . Carbon::parse($masReciente['planilla']->periodo_hasta)->format('d/m/Y') . ')',
+            'monto' => round($pendientes->sum('monto'), 2),
+        ];
+    }
+
+    // Debe mostrar la fecha real de entrega apenas algún contrato la
+    // tenga registrada — antes exigía que TODOS los contratos del proyecto
+    // (Contratista y Supervisión) tuvieran la fecha, así que casi siempre
+    // caía a null y el reporte mostraba "En proceso" en vez de la fecha.
     private function fechaEntregaProyecto($contratos, string $campo): ?string
     {
-        if ($contratos->isEmpty()) {
-            return null;
-        }
+        $fechaMasReciente = $contratos
+            ->pluck($campo)
+            ->filter()
+            ->map(fn ($fecha) => Carbon::parse($fecha))
+            ->max();
 
-        $todosConFecha = $contratos->every(fn ($c) => !empty($c->$campo));
-        if (!$todosConFecha) {
-            return null;
-        }
-
-        $fechaMasReciente = $contratos->max(fn ($c) => Carbon::parse($c->$campo));
-
-        return $fechaMasReciente->format('d/m/Y');
+        return $fechaMasReciente ? $fechaMasReciente->format('d/m/Y') : null;
     }
 
     private function estadoGeneral($contratos): string

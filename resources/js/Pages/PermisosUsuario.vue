@@ -295,6 +295,7 @@ onMounted(cargar)
 
     <!-- MODAL: NUEVO ROL -->
     <Teleport to="body">
+      <Transition name="modal-fade">
       <div v-if="mostrarModalRol" class="modal-overlay" @click.self="mostrarModalRol = false">
         <div class="modal-box">
           <h2>Nuevo rol</h2>
@@ -314,6 +315,7 @@ onMounted(cargar)
           </div>
         </div>
       </div>
+      </Transition>
     </Teleport>
   </div>
 </template>

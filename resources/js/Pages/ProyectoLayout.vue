@@ -388,26 +388,6 @@ watch(
 
 
 /* =========================================================
-   TRANSICIÓN ENTRE PESTAÑAS / PROYECTOS
-   ========================================================= */
-
-.fade-slide-enter-active,
-.fade-slide-leave-active {
-  transition: opacity 0.16s ease, transform 0.16s ease;
-}
-
-.fade-slide-enter-from {
-  opacity: 0;
-  transform: translateY(6px);
-}
-
-.fade-slide-leave-to {
-  opacity: 0;
-  transform: translateY(-6px);
-}
-
-
-/* =========================================================
    TABLET
    ========================================================= */
 
