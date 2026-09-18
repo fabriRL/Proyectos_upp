@@ -78,7 +78,7 @@ const definicionGrupos = [
     icono: 'ti-settings',
     titulo: 'Sistema General',
     descripcion: 'Pantallas independientes, no atadas a un proyecto específico.',
-    permisos: ['dashboard.ver', 'reportes.gestionar', 'roles.gestionar'],
+    permisos: ['dashboard.ver', 'reportes.gestionar', 'roles.gestionar', 'auditoria.ver'],
   },
 ]
 

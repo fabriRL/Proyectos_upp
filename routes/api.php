@@ -16,7 +16,9 @@ use App\Http\Controllers\Api\ProductoController;
 use App\Http\Controllers\Api\CatalogoDecretoSupremoController;
 use App\Http\Controllers\Api\ProgramacionFinancieraController;
 use App\Http\Controllers\Api\ReporteGeneralController;
+use App\Http\Controllers\Api\ReporteProyectoController;
 use App\Http\Controllers\Api\RolController;
+use App\Http\Controllers\Api\AuditoriaController;
 
 
 Route::post('/login', [AuthController::class, 'login']);
@@ -121,6 +123,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/reportes-generados', [ReporteGeneralController::class, 'historial']);
     Route::delete('/reportes-generados/{reporte}', [ReporteGeneralController::class, 'destroyHistorial']);
 
+    //REPORTE POR PROYECTO (módulos seleccionables)
+    Route::get('/reporte-proyecto/secciones', [ReporteProyectoController::class, 'secciones']);
+    Route::get('/proyectos/{proyecto:codigo}/reporte', [ReporteProyectoController::class, 'generar']);
+    Route::get('/proyectos/{proyecto:codigo}/reporte/pdf', [ReporteProyectoController::class, 'exportarPdf']);
+    Route::get('/proyectos/{proyecto:codigo}/reporte/excel', [ReporteProyectoController::class, 'exportarExcel']);
+
     Route::middleware('permiso:roles.gestionar')->group(function () {
     Route::get('/roles', [RolController::class, 'index']);
     Route::get('/permisos', [RolController::class, 'permisosDisponibles']);
@@ -128,6 +136,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/roles/{rol}', [RolController::class, 'update']);
     Route::delete('/roles/{rol}', [RolController::class, 'destroy']);
     Route::put('/roles/{rol}/permisos', [RolController::class, 'actualizarPermisos']);
+    });
+
+    // --- Auditoría (historial de cambios realizados por los usuarios) ---
+    Route::middleware('permiso:auditoria.ver')->group(function () {
+    Route::get('/auditoria', [AuditoriaController::class, 'index']);
+    Route::get('/auditoria/filtros', [AuditoriaController::class, 'filtros']);
+    Route::get('/auditoria/resumen', [AuditoriaController::class, 'resumen']);
     });
 
 

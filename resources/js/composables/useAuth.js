@@ -16,6 +16,7 @@ function normalizarUsuario(raw) {
   const nombre = raw.nombre || ''
   const email = raw.correo_electronico || ''
   const role = raw.rol?.nombre || ''
+  const roleDescription = raw.rol?.descripcion || ''
 
   const iniciales = nombre
     .trim()
@@ -30,6 +31,7 @@ function normalizarUsuario(raw) {
     name: nombre,
     email,
     role,
+    roleDescription,
     initials: iniciales || 'US',
   }
 }

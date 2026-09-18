@@ -5,6 +5,7 @@ import PermisosUsuario from '@/Pages/PermisosUsuario.vue'
 const routes = [
   { path: '/login', name: 'login', component: () => import('@/Pages/Login.vue'), meta: { public: true } },
   { path: '/', name: 'dashboard', component: () => import('@/Pages/Dashboard.vue') },
+  { path: '/perfil', name: 'perfil', component: () => import('@/Pages/Perfil.vue') },
   { path: '/flujo', name: 'flujo', component: () => import('@/Pages/FlujoSistema.vue') },
   { path: '/proyectos', name: 'proyectos', component: () => import('@/Pages/ListaProyectos.vue'), meta: { permiso: 'proyectos.gestionar' } },
   { path: '/proyectos/nuevo', name: 'nuevo-proyecto', component: () => import('@/Pages/NuevoProyecto.vue'), meta: { permiso: 'proyectos.gestionar' } },
@@ -14,6 +15,7 @@ const routes = [
   { path: '/reportes/generar', name: 'generar-reporte', component: () => import('@/Pages/GenerarReporte.vue'), meta: { permiso: 'reportes.gestionar' } },
 
   { path: '/permisos', name: 'permisos', component: PermisosUsuario, meta: { permiso: 'roles.gestionar' } },
+  { path: '/auditoria', name: 'auditoria', component: () => import('@/Pages/Auditoria.vue'), meta: { permiso: 'auditoria.ver' } },
 
   {
     path: '/proyectos/:codigo',
@@ -27,6 +29,7 @@ const routes = [
       { path: 'planillas', name: 'planillas', component: () => import('@/Pages/PlanillasPago.vue'), meta: { permiso: 'planillas.gestionar' } },
       { path: 'decretos', name: 'decretos', component: () => import('@/Pages/MontosDecretoSupremo.vue'), meta: { permiso: 'decretos.gestionar' } },
       { path: 'financiero', name: 'financiero', component: () => import('@/Pages/ProgramacionFinanciera.vue'), meta: { permiso: 'financiero.gestionar' } },
+      { path: 'reporte', name: 'reporte-proyecto', component: () => import('@/Pages/ReporteProyecto.vue'), meta: { permiso: 'reportes.gestionar' } },
       { path: 'modificaciones', name: 'modificaciones', component: () => import('@/Pages/ModificacionesContractuales.vue'), meta: { permiso: 'modificaciones.gestionar' } },
     ],
   },

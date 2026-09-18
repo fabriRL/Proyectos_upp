@@ -43,9 +43,11 @@ const errorFormulario = ref(null)
 const modoEdicion = ref(false)
 const actividadEditandoId = ref(null)
 
+// "porcentaje_cumplimiento_programado" no se pide aquí: se calcula solo
+// en el backend a partir de fecha_inicio/fecha_fin/estado.
 const FORM_DEFAULT = () => ({
   numero: '', actividad: '', fecha_inicio: '', fecha_fin: '',
-  estado: 'Pendiente', porcentaje_cumplimiento_programado: 0, porcentaje_cumplimiento_real: 0,
+  estado: 'Pendiente', porcentaje_cumplimiento_real: 0,
 })
 const actividadFormulario = ref(FORM_DEFAULT())
 
@@ -77,7 +79,6 @@ function abrirEditarActividad(actividad) {
     fecha_inicio: normalizarFechaInput(actividad.fecha_inicio),
     fecha_fin: normalizarFechaInput(actividad.fecha_fin),
     estado: actividad.estado ?? 'Pendiente',
-    porcentaje_cumplimiento_programado: Number(actividad.porcentaje_cumplimiento_programado ?? 0),
     porcentaje_cumplimiento_real: Number(actividad.porcentaje_cumplimiento_real ?? 0),
   }
 
@@ -150,10 +151,8 @@ function validarFormulario() {
   if (!f.fecha_fin) return (errorFormulario.value = 'Debes seleccionar la fecha de finalización.'), false
   if (f.fecha_fin < f.fecha_inicio) return (errorFormulario.value = 'La fecha de finalización no puede ser anterior a la fecha de inicio.'), false
 
-  const programado = Number(f.porcentaje_cumplimiento_programado)
   const real = Number(f.porcentaje_cumplimiento_real)
 
-  if (programado < 0 || programado > 100) return (errorFormulario.value = 'El cumplimiento programado debe estar entre 0 y 100%.'), false
   if (real < 0 || real > 100) return (errorFormulario.value = 'El cumplimiento real debe estar entre 0 y 100%.'), false
 
   return true
@@ -188,7 +187,6 @@ async function guardarActividad() {
     fecha_fin: f.fecha_fin,
     duracion_dias: calcularDuracion(f.fecha_inicio, f.fecha_fin),
     estado: f.estado,
-    porcentaje_cumplimiento_programado: Number(f.porcentaje_cumplimiento_programado || 0),
     porcentaje_cumplimiento_real: Number(f.porcentaje_cumplimiento_real || 0),
   }
 
@@ -585,15 +583,6 @@ defineExpose({ recargar: cargarActividades })
             </div>
 
             <div class="form-group">
-              <label>Cumplimiento programado</label>
-              <div class="input-wrap percentage-input">
-                <i class="ti ti-chart-bar"></i>
-                <input v-model.number="actividadFormulario.porcentaje_cumplimiento_programado" type="number" min="0" max="100" step="0.01" />
-                <span>%</span>
-              </div>
-            </div>
-
-            <div class="form-group">
               <label>Cumplimiento real</label>
               <div class="input-wrap percentage-input">
                 <i class="ti ti-chart-line"></i>
@@ -670,7 +659,7 @@ defineExpose({ recargar: cargarActividades })
 /* ============================================================
    HEADER
 ============================================================ */
-.cronograma-header { display: flex; justify-content: space-between; align-items: center; gap: 20px; margin-bottom: 18px; }
+.cronograma-header { display: flex; justify-content: space-between; align-items: center; gap: 20px; margin-bottom: 22px; }
 .header-title { display: flex; align-items: center; gap: 13px; }
 .header-icon {
   width: 42px; height: 42px; display: flex; justify-content: center; align-items: center;
@@ -696,20 +685,20 @@ defineExpose({ recargar: cargarActividades })
    SUMMARY
 ============================================================ */
 .gantt-summary {
-  display: flex; align-items: stretch; min-height: 72px; margin-bottom: 15px; overflow: hidden;
-  border: 1px solid var(--border-1); border-radius: 11px;
+  display: flex; align-items: stretch; min-height: 86px; margin-bottom: 20px; overflow: hidden;
+  border: 1px solid var(--border-1); border-radius: 12px;
   background: linear-gradient(135deg, var(--bg-3), var(--bg-2));
   box-shadow: 0 8px 30px rgba(0,0,0,.1);
 }
-.summary-item { display: flex; align-items: center; gap: 10px; min-width: 145px; padding: 11px 17px; border-right: 1px solid #19354a; }
-.summary-icon { width: 34px; height: 34px; display: flex; justify-content: center; align-items: center; border-radius: 8px; background: var(--accent-10); color: var(--accent); font-size: 17px; }
+.summary-item { display: flex; align-items: center; gap: 13px; min-width: 170px; padding: 16px 22px; border-right: 1px solid #19354a; }
+.summary-icon { width: 40px; height: 40px; display: flex; justify-content: center; align-items: center; border-radius: 9px; background: var(--accent-10); color: var(--accent); font-size: 19px; }
 .summary-icon.success { color: #00d0aa; }
 .summary-icon.blue { background: var(--blue-10); color: var(--blue); }
 .summary-icon.purple { background: var(--purple-10); color: var(--purple); }
-.summary-item strong { display: block; color: #e0edf5; font-size: .95rem; line-height: 1; }
-.summary-item span { display: block; margin-top: 4px; color: #7793a8; font-size: .65rem; }
+.summary-item strong { display: block; color: #e0edf5; font-size: 1.05rem; line-height: 1; }
+.summary-item span { display: block; margin-top: 5px; color: #7793a8; font-size: .68rem; }
 
-.summary-legend { display: flex; align-items: center; gap: 17px; margin-left: auto; padding: 0 20px; color: #829caf; font-size: .67rem; white-space: nowrap; }
+.summary-legend { display: flex; align-items: center; gap: 20px; margin-left: auto; padding: 0 24px; color: #829caf; font-size: .69rem; white-space: nowrap; }
 .summary-legend span { display: flex; align-items: center; gap: 6px; }
 .summary-legend i { width: 17px; height: 7px; display: block; border-radius: 3px; }
 .planned-dot { background: rgba(0,201,167,.32); border: 1px solid var(--accent-border); }
@@ -718,17 +707,17 @@ defineExpose({ recargar: cargarActividades })
 /* ============================================================
    GANTT CARD
 ============================================================ */
-.gantt-card { overflow: hidden; border: 1px solid #1d3a51; border-radius: 12px; background: var(--bg-2); box-shadow: 0 12px 35px rgba(0,0,0,.12); }
+.gantt-card { overflow: hidden; border: 1px solid #1d3a51; border-radius: 13px; background: var(--bg-2); box-shadow: 0 12px 35px rgba(0,0,0,.12); }
 .gantt-card-header {
-  min-height: 62px; display: flex; align-items: center; justify-content: space-between; gap: 20px;
-  padding: 11px 16px; border-bottom: 1px solid var(--border-1);
+  min-height: 72px; display: flex; align-items: center; justify-content: space-between; gap: 20px;
+  padding: 15px 20px; border-bottom: 1px solid var(--border-1);
   background: linear-gradient(135deg, #0e2436, var(--bg-2));
 }
-.gantt-card-header h3 { margin: 0; display: flex; align-items: center; gap: 7px; color: #d8e8f1; font-size: .82rem; }
-.gantt-card-header h3 i { color: var(--accent); font-size: 17px; }
-.gantt-card-header span { display: block; margin-top: 4px; color: var(--text-muteder); font-size: .64rem; }
+.gantt-card-header h3 { margin: 0; display: flex; align-items: center; gap: 8px; color: #d8e8f1; font-size: .86rem; }
+.gantt-card-header h3 i { color: var(--accent); font-size: 18px; }
+.gantt-card-header span { display: block; margin-top: 5px; color: var(--text-muteder); font-size: .67rem; }
 
-.timeline-info { display: flex; align-items: center; gap: 6px; padding: 6px 9px; border: 1px solid #24445a; border-radius: 6px; background: rgba(7,22,34,.65); color: #91aabd; font-size: .63rem; }
+.timeline-info { display: flex; align-items: center; gap: 7px; padding: 8px 12px; border: 1px solid #24445a; border-radius: 7px; background: rgba(7,22,34,.65); color: #91aabd; font-size: .66rem; }
 .timeline-info i { color: var(--accent); }
 
 /* ============================================================
@@ -739,19 +728,19 @@ defineExpose({ recargar: cargarActividades })
 .gantt-scroll::-webkit-scrollbar-track { background: #091722; }
 .gantt-scroll::-webkit-scrollbar-thumb { border-radius: 10px; background: #31536b; }
 
-.gantt-table { min-width: 1440px; display: grid; grid-template-columns: 645px minmax(795px, 1fr); grid-template-rows: 35px 28px; }
+.gantt-table { min-width: 1520px; display: grid; grid-template-columns: 700px minmax(820px, 1fr); grid-template-rows: 40px 32px; }
 
-.gantt-side { display: grid; grid-template-columns: 32px 1fr 58px 58px 44px 56px 56px 130px; align-items: center; }
-.header-side { background: var(--bg-0); border-right: 1px solid var(--border-2); color: #8da6b8; font-size: .62rem; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; }
-.header-side span { padding: 0 8px; }
+.gantt-side { display: grid; grid-template-columns: 36px 1fr 66px 66px 50px 62px 62px 142px; align-items: center; }
+.header-side { background: var(--bg-0); border-right: 1px solid var(--border-2); color: #8da6b8; font-size: .64rem; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; }
+.header-side span { padding: 0 10px; }
 
 .gantt-timeline { position: relative; display: grid; grid-template-columns: repeat(var(--n-cols), minmax(16px, 1fr)); }
 .gantt-months { overflow: hidden; background: linear-gradient(135deg, #0879b9, #086da7); color: #fff; }
-.month { grid-column: span 4; display: flex; align-items: center; justify-content: center; border-right: 1px solid rgba(255,255,255,.19); font-size: .61rem; font-weight: 800; letter-spacing: .04em; }
+.month { grid-column: span 4; display: flex; align-items: center; justify-content: center; border-right: 1px solid rgba(255,255,255,.19); font-size: .63rem; font-weight: 800; letter-spacing: .04em; }
 
 .week-side { background: #091926; border-top: 1px solid #1a3448; border-right: 1px solid var(--border-2); }
 .week-row { background: var(--bg-1); border-top: 1px solid #1a3448; }
-.week-row span { display: flex; justify-content: center; align-items: center; border-right: 1px solid var(--border-1); color: #6f8b9e; font-size: .56rem; font-weight: 700; }
+.week-row span { display: flex; justify-content: center; align-items: center; border-right: 1px solid var(--border-1); color: #6f8b9e; font-size: .58rem; font-weight: 700; }
 .week-row span:nth-child(4n) { border-right-color: #35556a; }
 
 .today-marker { position: absolute; top: 0; bottom: -3000px; width: 2px; z-index: 20; background: #ff5577; pointer-events: none; box-shadow: 0 0 7px rgba(255,85,119,.45); }
@@ -761,21 +750,21 @@ defineExpose({ recargar: cargarActividades })
 /* ============================================================
    ROWS
 ============================================================ */
-.activity-info { min-height: 50px; border-top: 1px solid #152d41; border-right: 1px solid var(--border-2); background: #0b1d2c; color: #829bae; font-size: .67rem; transition: background .15s ease; }
+.activity-info { min-height: 60px; border-top: 1px solid #152d41; border-right: 1px solid var(--border-2); background: #0b1d2c; color: #829bae; font-size: .69rem; transition: background .15s ease; }
 .activity-info:hover { background: #0e2435; }
-.activity-info span { padding: 0 8px; }
+.activity-info span { padding: 0 10px; }
 .number { color: var(--accent); font-weight: 800; text-align: center; }
-.activity-name { color: var(--text-soft); font-size: .72rem; font-weight: 550; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.date-cell { color: #7893a7; font-size: .61rem; }
+.activity-name { color: var(--text-soft); font-size: .75rem; font-weight: 550; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.date-cell { color: #7893a7; font-size: .64rem; }
 .date-cell.col-centro { text-align: center; }
-.estado-cell { display: flex; align-items: center; gap: 5px; min-width: 0; overflow: hidden; }
-.estado-cell .badge { overflow: hidden; text-overflow: ellipsis; max-width: 90px; }
+.estado-cell { display: flex; align-items: center; gap: 6px; min-width: 0; overflow: hidden; padding-right: 8px; }
+.estado-cell .badge { overflow: hidden; text-overflow: ellipsis; max-width: 96px; }
 
-.action-btn { width: 25px; height: 25px; flex: 0 0 25px; display: inline-flex; justify-content: center; align-items: center; border: 1px solid transparent; border-radius: 6px; cursor: pointer; font-size: 13px; transition: background .15s ease, border-color .15s ease, transform .15s ease; }
+.action-btn { width: 27px; height: 27px; flex: 0 0 27px; display: inline-flex; justify-content: center; align-items: center; border: 1px solid transparent; border-radius: 6px; cursor: pointer; font-size: 13px; transition: background .15s ease, border-color .15s ease, transform .15s ease; }
 .edit-btn { margin-left: 2px; background: var(--blue-10); border-color: rgba(77,179,240,.16); color: var(--blue); }
 .edit-btn:hover { background: var(--blue-18); border-color: rgba(77,179,240,.3); transform: translateY(-1px); }
 
-.activity-track { min-height: 50px; border-top: 1px solid #152d41; background: var(--bg-1); isolation: isolate; }
+.activity-track { min-height: 60px; border-top: 1px solid #152d41; background: var(--bg-1); isolation: isolate; }
 .activity-track::after { content: ''; position: absolute; inset: 0; z-index: 0; pointer-events: none; background: linear-gradient(90deg, transparent, rgba(255,255,255,.012), transparent); }
 .week-cell { border-right: 1px solid #19374d; opacity: .85; }
 .week-cell:nth-child(4n) { border-right-color: #35576b; }
@@ -785,15 +774,15 @@ defineExpose({ recargar: cargarActividades })
 ============================================================ */
 .planned-bar, .actual-bar { position: absolute; left: 0; border-radius: 4px; transition: filter .2s ease, transform .2s ease; }
 .planned-bar {
-  top: 14px; height: 22px; min-width: 5px; z-index: 2;
+  top: 17px; height: 26px; min-width: 5px; z-index: 2;
   background: linear-gradient(90deg, rgba(0,201,167,.2), rgba(0,201,167,.32));
   border: 1px solid var(--accent-border); box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
 }
 .planned-bar:hover { filter: brightness(1.18); }
-.planned-bar span { position: absolute; top: 50%; right: 5px; transform: translateY(-50%); color: #bff8ed; font-size: .55rem; font-weight: 800; white-space: nowrap; }
+.planned-bar span { position: absolute; top: 50%; right: 5px; transform: translateY(-50%); color: #bff8ed; font-size: .57rem; font-weight: 800; white-space: nowrap; }
 
 .actual-bar {
-  top: 20px; height: 10px; min-width: 3px; z-index: 4; overflow: hidden;
+  top: 24px; height: 12px; min-width: 3px; z-index: 4; overflow: hidden;
   background: linear-gradient(90deg, #00ae94, #00d0ae);
   border: 1px solid var(--accent-border); box-shadow: 0 1px 8px rgba(0,201,167,.28);
 }
@@ -820,7 +809,7 @@ defineExpose({ recargar: cargarActividades })
 .empty-gantt strong { display: block; color: var(--text-soft); font-size: .76rem; }
 .empty-gantt small { display: block; margin-top: 4px; color: #718da2; font-size: .65rem; }
 
-.gantt-note { display: flex; align-items: center; gap: 8px; min-height: 42px; padding: 7px 14px; border-top: 1px solid #19354b; background: var(--bg-0); color: #728da2; font-size: .63rem; }
+.gantt-note { display: flex; align-items: center; gap: 9px; min-height: 48px; padding: 9px 18px; border-top: 1px solid #19354b; background: var(--bg-0); color: #728da2; font-size: .65rem; }
 .gantt-note > div { width: 24px; height: 24px; display: flex; justify-content: center; align-items: center; flex: 0 0 24px; border-radius: 6px; background: var(--accent-10); }
 .gantt-note i { color: var(--accent); font-size: 14px; }
 .gantt-note strong { color: #a3baca; font-weight: 700; }
@@ -843,12 +832,12 @@ defineExpose({ recargar: cargarActividades })
 ============================================================ */
 .modal-overlay { position: fixed; inset: 0; z-index: 9999; display: flex; justify-content: center; align-items: center; padding: 20px; background: rgba(1,8,14,.78); backdrop-filter: blur(5px); }
 .modal-actividad {
-  width: min(680px, 100%); max-height: 92vh; overflow-y: auto; border: 1px solid #29485e; border-radius: 13px;
+  width: min(720px, 100%); max-height: 92vh; overflow-y: auto; border: 1px solid #29485e; border-radius: 14px;
   background: linear-gradient(145deg, var(--bg-3), var(--bg-2)); box-shadow: 0 25px 90px rgba(0,0,0,.58);
   scrollbar-width: thin; scrollbar-color: #31536b transparent;
 }
 
-.modal-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 15px; padding: 19px 20px; border-bottom: 1px solid #1b394e; background: linear-gradient(135deg, rgba(0,201,167,.045), transparent); }
+.modal-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 15px; padding: 22px 24px; border-bottom: 1px solid #1b394e; background: linear-gradient(135deg, rgba(0,201,167,.045), transparent); }
 .modal-title { display: flex; align-items: center; gap: 11px; }
 .modal-icon { width: 38px; height: 38px; display: flex; justify-content: center; align-items: center; border: 1px solid var(--accent-border-soft); border-radius: 9px; background: rgba(0,201,167,.09); color: var(--accent); font-size: 18px; }
 .modal-header h3 { margin: 0; color: #dceaf2; font-size: .92rem; }
@@ -859,32 +848,32 @@ defineExpose({ recargar: cargarActividades })
 /* ============================================================
    FORM
 ============================================================ */
-.form-actividad { padding: 20px; }
-.form-error { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 16px; padding: 10px 12px; border: 1px solid rgba(242,139,130,.25); border-radius: 7px; background: var(--danger-10); color: var(--danger); font-size: .69rem; line-height: 1.4; }
+.form-actividad { padding: 24px; }
+.form-error { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 18px; padding: 11px 13px; border: 1px solid rgba(242,139,130,.25); border-radius: 8px; background: var(--danger-10); color: var(--danger); font-size: .7rem; line-height: 1.4; }
 .form-error i { margin-top: 1px; font-size: 15px; }
 
-.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
-.form-group { display: flex; flex-direction: column; gap: 6px; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px 20px; }
+.form-group { display: flex; flex-direction: column; gap: 7px; }
 .form-full { grid-column: 1 / -1; }
-.form-group label { color: #9cb5c6; font-size: .65rem; font-weight: 750; }
+.form-group label { color: #9cb5c6; font-size: .67rem; font-weight: 750; }
 
 .input-wrap { position: relative; display: flex; align-items: center; }
-.input-wrap > i { position: absolute; left: 10px; z-index: 2; color: #5f7c91; font-size: 15px; pointer-events: none; }
+.input-wrap > i { position: absolute; left: 12px; z-index: 2; color: #5f7c91; font-size: 15px; pointer-events: none; }
 
 .form-group input, .form-group select {
-  width: 100%; box-sizing: border-box; min-height: 38px; padding: 9px 10px 9px 32px;
-  border: 1px solid var(--border-3); border-radius: 7px; outline: none; background: #081a29; color: var(--text);
-  font-size: .7rem; transition: border-color .15s ease, box-shadow .15s ease, background .15s ease;
+  width: 100%; box-sizing: border-box; min-height: 42px; padding: 10px 12px 10px 36px;
+  border: 1px solid var(--border-3); border-radius: 8px; outline: none; background: #081a29; color: var(--text);
+  font-size: .72rem; transition: border-color .15s ease, box-shadow .15s ease, background .15s ease;
 }
 .form-group select { appearance: auto; }
 .form-group input::placeholder { color: #536e82; }
 .form-group input:focus, .form-group select:focus { border-color: rgba(0,201,167,.65); background: #091d2c; box-shadow: 0 0 0 3px rgba(0,201,167,.07); }
 
-.percentage-input input { padding-right: 30px; }
-.percentage-input > span { position: absolute; right: 11px; color: #6e8a9d; font-size: .67rem; pointer-events: none; }
+.percentage-input input { padding-right: 32px; }
+.percentage-input > span { position: absolute; right: 13px; color: #6e8a9d; font-size: .68rem; pointer-events: none; }
 
-.modal-actions { display: flex; justify-content: flex-end; gap: 9px; margin-top: 20px; padding-top: 16px; border-top: 1px solid #19374c; }
-.btn-cancelar, .btn-guardar { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 37px; padding: 0 14px; border-radius: 7px; font-size: .68rem; font-weight: 750; cursor: pointer; transition: .15s; }
+.modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px; padding-top: 18px; border-top: 1px solid #19374c; }
+.btn-cancelar, .btn-guardar { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 40px; padding: 0 16px; border-radius: 8px; font-size: .7rem; font-weight: 750; cursor: pointer; transition: .15s; }
 .btn-cancelar { border: 1px solid #31516a; background: transparent; color: #91aabd; }
 .btn-cancelar:hover:not(:disabled) { background: rgba(255,255,255,.04); border-color: #45657b; }
 .btn-guardar { border: 1px solid var(--accent-border); background: linear-gradient(135deg, #00d0aa, #00b99b); color: #04151b; box-shadow: 0 5px 15px rgba(0,201,167,.12); }

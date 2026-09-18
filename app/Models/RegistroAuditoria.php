@@ -23,4 +23,9 @@ class RegistroAuditoria extends Model
         'valores_anteriores' => 'array',
         'valores_nuevos' => 'array',
     ];
+
+    public function usuario()
+    {
+        return $this->belongsTo(Usuario::class, 'id_usuario', 'id_usuario');
+    }
 }

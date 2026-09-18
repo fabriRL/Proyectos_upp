@@ -147,6 +147,7 @@ class AuthController extends Controller
             return [
                 'id_permiso' => $permiso->id_permiso,
                 'nombre' => $permiso->nombre,
+                'descripcion' => $permiso->descripcion,
             ];
         })->values();
 
@@ -165,6 +166,8 @@ class AuthController extends Controller
                 'id_usuario' => $usuario->id_usuario,
                 'nombre' => $usuario->nombre,
                 'correo_electronico' => $usuario->correo_electronico,
+                'ultimo_inicio_sesion' => $usuario->ultimo_inicio_sesion,
+                'creado_en' => $usuario->creado_en,
 
                 'rol' => [
                     'id_rol' => $usuario->rol->id_rol,
@@ -192,10 +195,13 @@ class AuthController extends Controller
                 'id_usuario' => $usuario->id_usuario,
                 'nombre' => $usuario->nombre,
                 'correo_electronico' => $usuario->correo_electronico,
+                'ultimo_inicio_sesion' => $usuario->ultimo_inicio_sesion,
+                'creado_en' => $usuario->creado_en,
 
                 'rol' => [
                     'id_rol' => $usuario->rol->id_rol,
                     'nombre' => $usuario->rol->nombre,
+                    'descripcion' => $usuario->rol->descripcion,
                 ],
 
                 'permisos' => $usuario->rol->permisos
@@ -203,6 +209,7 @@ class AuthController extends Controller
                         return [
                             'id_permiso' => $permiso->id_permiso,
                             'nombre' => $permiso->nombre,
+                            'descripcion' => $permiso->descripcion,
                         ];
                     })
                     ->values(),

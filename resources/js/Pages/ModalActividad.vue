@@ -27,13 +27,16 @@ const emit = defineEmits([
 const guardando = ref(false)
 const errorFormulario = ref(null)
 
+/*
+| "porcentaje_cumplimiento_programado" no se pide aquí: se calcula solo
+| en el backend a partir de fecha_inicio/fecha_fin/estado.
+*/
 const nuevaActividad = ref({
     numero: 1,
     actividad: '',
     fecha_inicio: '',
     fecha_fin: '',
     estado: 'Pendiente',
-    porcentaje_cumplimiento_programado: 0,
     porcentaje_cumplimiento_real: 0
 })
 
@@ -46,7 +49,6 @@ function resetearFormulario() {
         fecha_inicio: '',
         fecha_fin: '',
         estado: 'Pendiente',
-        porcentaje_cumplimiento_programado: 0,
         porcentaje_cumplimiento_real: 0
     }
 }
@@ -117,11 +119,6 @@ async function guardarActividad() {
             fecha_fin: nuevaActividad.value.fecha_fin,
             duracion_dias: duracionDias,
             estado: nuevaActividad.value.estado,
-            porcentaje_cumplimiento_programado:
-                Number(
-                    nuevaActividad.value
-                        .porcentaje_cumplimiento_programado || 0
-                ),
             porcentaje_cumplimiento_real:
                 Number(
                     nuevaActividad.value
@@ -315,25 +312,6 @@ watch(
                             type="date"
                             :min="nuevaActividad.fecha_inicio"
                             required
-                        >
-
-                    </div>
-
-                    <div class="form-group">
-
-                        <label>
-                            Cumplimiento programado (%)
-                        </label>
-
-                        <input
-                            v-model.number="
-                                nuevaActividad
-                                    .porcentaje_cumplimiento_programado
-                            "
-                            type="number"
-                            min="0"
-                            max="100"
-                            step="0.01"
                         >
 
                     </div>

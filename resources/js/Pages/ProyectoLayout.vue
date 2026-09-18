@@ -17,6 +17,7 @@ const tabsCompletas = [
   { name: 'planillas', label: 'Planillas', icon: 'ti-receipt', permiso: 'planillas.gestionar' },
   { name: 'decretos', label: '7. Decreto Supremo', icon: 'ti-file-certificate', permiso: 'decretos.gestionar' },
   { name: 'financiero', label: '8. Prog. financiera', icon: 'ti-chart-bar', permiso: 'financiero.gestionar' },
+  { name: 'reporte-proyecto', label: 'Reporte', icon: 'ti-report-analytics', permiso: 'reportes.gestionar' },
 ]
 
 // Solo se muestran las pestañas cuyo permiso el usuario sí tiene —
