@@ -10,6 +10,7 @@ const route = useRoute()
 const nav = [
   { name: 'flujo', icon: 'ti-sitemap', label: 'Flujo del sistema' },
   { name: 'dashboard', icon: 'ti-layout-dashboard', label: 'Dashboard' },
+  { name: 'decretos-supremos', icon: 'ti-file-certificate', label: 'Decretos Supremos' },
   { name: 'proyectos', icon: 'ti-building', label: 'Proyectos' },
   { name: 'reportes', icon: 'ti-report', label: 'Reportes' },
   { name: 'permisos', icon: 'ti-shield-lock', label: 'Permisos de Usuario' },

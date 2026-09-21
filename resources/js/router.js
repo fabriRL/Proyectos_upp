@@ -7,6 +7,7 @@ const routes = [
   { path: '/', name: 'dashboard', component: () => import('@/Pages/Dashboard.vue') },
   { path: '/perfil', name: 'perfil', component: () => import('@/Pages/Perfil.vue') },
   { path: '/flujo', name: 'flujo', component: () => import('@/Pages/FlujoSistema.vue') },
+  { path: '/decretos-supremos', name: 'decretos-supremos', component: () => import('@/Pages/DecretosSupremos.vue'), meta: { permiso: 'decretos_supremos.gestionar' } },
   { path: '/proyectos', name: 'proyectos', component: () => import('@/Pages/ListaProyectos.vue'), meta: { permiso: 'proyectos.gestionar' } },
   { path: '/proyectos/nuevo', name: 'nuevo-proyecto', component: () => import('@/Pages/NuevoProyecto.vue'), meta: { permiso: 'proyectos.gestionar' } },
   { path: '/proyectos/:codigo/editar', name: 'editar-proyecto', component: () => import('@/Pages/EditarProyecto.vue'), meta: { permiso: 'proyectos.gestionar' } },

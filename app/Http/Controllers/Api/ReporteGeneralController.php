@@ -327,16 +327,13 @@ class ReporteGeneralController extends Controller
             $contratistas = $contratosObra->pluck('contratista')->filter()->unique()->implode(', ');
             $empresaSupervision = $contratosSupervision->pluck('contratista')->filter()->unique()->implode(', ');
 
-            // Si ningún contrato tiene su fecha de entrega propia cargada
-            // (la mayoría de los casos: solo 7 de 31 contratos la tienen),
-            // se usa fecha_conclusion_actual del proyecto como respaldo —
-            // esa sí está cargada en casi todos los proyectos.
-            $fechaConclusionActualProyecto = $p->fecha_conclusion_actual
-                ? Carbon::parse($p->fecha_conclusion_actual)->format('d/m/Y')
-                : null;
-
-            $fechaProvisional = $this->fechaEntregaProyecto($contratos, 'fecha_entrega_provisional') ?? $fechaConclusionActualProyecto;
-            $fechaDefinitiva = $this->fechaEntregaProyecto($contratos, 'fecha_entrega_definitiva') ?? $fechaConclusionActualProyecto;
+            // Las fechas de entrega salen SOLO de las fechas del proyecto
+            // (las mismas que se editan en "Fechas y plazos"), no de los
+            // contratos: Provisional = conclusión inicial (programación
+            // inicial) y Definitiva = conclusión actual (s/modificaciones).
+            $fmt = fn ($f) => $f ? Carbon::parse($f)->format('d/m/Y') : null;
+            $fechaProvisional = $fmt($p->fecha_conclusion_inicial_contractual);
+            $fechaDefinitiva = $fmt($p->fecha_conclusion_actual);
 
             // Se agrega para que se entienda de dónde sale el Plazo (Días):
             // Inicio Contractual + Plazo ≈ Conclusión Prevista/Entrega. Sin
@@ -354,8 +351,7 @@ class ReporteGeneralController extends Controller
             // (plazo_dias) solo está cargado en 14 de 31 contratos, mientras
             // que plazo_contractual_actual_dias del proyecto sí está en 26
             // de 27 — se usa como respaldo.
-            $plazoDias = $contratos->pluck('plazo_dias')->filter()->max()
-                ?? $p->plazo_contractual_actual_dias;
+            $plazoDias = $p->plazo_contractual_actual_dias;
 
             $todasModificaciones = $contratos->flatMap->modificaciones;
             $ultimaModificacion = $todasModificaciones

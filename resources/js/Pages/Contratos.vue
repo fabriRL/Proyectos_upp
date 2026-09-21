@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router'
 import axios from 'axios'
 import { useUtils } from '@/composables/useUtils.js'
 import { useToast } from '@/composables/useToast.js'
+import { useConfirm } from '@/composables/useConfirm.js'
 import NuevoContrato from './NuevoContrato.vue'
 import EditarContrato from './EditarContrato.vue'
 
@@ -12,6 +13,7 @@ const codigoProyecto = route.params.codigo
 
 const { badgeClass, fillClass, fmtBs } = useUtils()
 const { showToast } = useToast()
+const { confirmar } = useConfirm()
 
 const rows = ref([])
 const rawContratos = ref([])
@@ -81,7 +83,8 @@ function abrirEditar(idContrato) {
 
 async function toggleActivoContrato(idContrato, activoActual) {
   const accion = activoActual ? 'desactivar' : 'activar'
-  if (!confirm(`¿Seguro que quieres ${accion} este contrato?`)) return
+  const ok = await confirmar({ title: `¿${accion.charAt(0).toUpperCase() + accion.slice(1)} este contrato?`, message: `¿Seguro que quieres ${accion} este contrato?`, confirmText: activoActual ? 'Desactivar' : 'Activar', variant: 'warning' })
+  if (!ok) return
   try {
     await axios.patch(`/api/contratos/${idContrato}/activo`)
     await cargar()

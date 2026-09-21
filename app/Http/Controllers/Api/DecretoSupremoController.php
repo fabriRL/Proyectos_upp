@@ -87,13 +87,20 @@ class DecretoSupremoController extends Controller
 
     public function update(Request $request, DecretoSupremoProyecto $decreto)
     {
+        // "numero_decreto" y "monto_inicial" vienen del proyecto / Decreto
+        // Supremo original y NO se editan aquí (validate() los descarta):
+        // este registro solo permite ajustar lo propio del proyecto.
         $data = $request->validate([
-            'numero_decreto' => 'sometimes|required|string|max:255',
-            'monto_inicial' => 'sometimes|required|numeric|min:0',
             'incremento' => 'nullable|numeric|min:0',
             'monto_puesta_marcha_insumos' => 'nullable|numeric|min:0',
             'monto_auditoria_interna' => 'nullable|numeric|min:0',
         ]);
+
+        foreach (['incremento', 'monto_puesta_marcha_insumos', 'monto_auditoria_interna'] as $campo) {
+            if (array_key_exists($campo, $data)) {
+                $data[$campo] = $data[$campo] ?? 0;
+            }
+        }
 
         $data['id_usuario_actualizador'] = $request->user()->id_usuario ?? $request->user()->id;
         $decreto->update($data);

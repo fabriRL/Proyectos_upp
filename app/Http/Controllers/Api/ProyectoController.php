@@ -11,6 +11,7 @@ use App\Models\Producto;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use App\Models\DecretoSupremo;
 
 class ProyectoController extends Controller
@@ -26,7 +27,18 @@ class ProyectoController extends Controller
     {
         $datos = $request->validate([
             'codigo' => 'required|string|max:30|unique:proyectos,codigo',
-            'numero_sisin_web' => 'nullable|string|max:50',
+            // El índice único de "numero_sisin_web" ya existe en la base de
+            // datos, pero sin esta regla el duplicado no se detectaba aquí:
+            // pasaba la validación, llegaba al INSERT y ahí recién explotaba
+            // como un error 500 crudo en vez de un 422 manejable. Se excluyen
+            // los proyectos eliminados lógicamente para poder reutilizar el
+            // número de un proyecto borrado.
+            'numero_sisin_web' => [
+                'nullable',
+                'string',
+                'max:50',
+                Rule::unique('proyectos', 'numero_sisin_web')->whereNull('eliminado_en'),
+            ],
             'nombre' => 'required|string|max:255',
             'estado' => 'nullable|string|max:100',
             'observaciones' => 'nullable|string',
@@ -68,6 +80,8 @@ class ProyectoController extends Controller
             'componentes.*.productos.*.nombre' => 'required_with:componentes.*.productos|string|max:255',
             'componentes.*.productos.*.cantidad' => 'nullable|numeric|min:0',
             'componentes.*.productos.*.unidad' => 'nullable|string|max:50',
+        ], [
+            'numero_sisin_web.unique' => 'Este número SISINWEB ya está registrado en otro proyecto.',
         ]);
 
         $proyecto = DB::transaction(function () use ($datos) {
@@ -208,7 +222,14 @@ class ProyectoController extends Controller
     {
         $datos = $request->validate([
             'codigo' => 'sometimes|required|string|max:30|unique:proyectos,codigo,' . $proyecto->id_proyecto . ',id_proyecto',
-            'numero_sisin_web' => 'nullable|string|max:50',
+            'numero_sisin_web' => [
+                'nullable',
+                'string',
+                'max:50',
+                Rule::unique('proyectos', 'numero_sisin_web')
+                    ->whereNull('eliminado_en')
+                    ->ignore($proyecto->id_proyecto, 'id_proyecto'),
+            ],
             'nombre' => 'sometimes|required|string|max:255',
             'estado' => 'nullable|string|max:100',
             'observaciones' => 'nullable|string',
@@ -253,6 +274,8 @@ class ProyectoController extends Controller
             'componentes.*.productos.*.nombre' => 'required_with:componentes.*.productos|string|max:255',
             'componentes.*.productos.*.cantidad' => 'nullable|numeric|min:0',
             'componentes.*.productos.*.unidad' => 'nullable|string|max:50',
+        ], [
+            'numero_sisin_web.unique' => 'Este número SISINWEB ya está registrado en otro proyecto.',
         ]);
 
         $proyecto = DB::transaction(function () use ($datos, $proyecto) {

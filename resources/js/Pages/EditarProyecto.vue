@@ -141,6 +141,30 @@ function pasoAnterior() {
   currentStep.value = Math.max(currentStep.value - 1, 1)
 }
 
+// Qué campo del backend vive en qué paso del wizard — para poder saltar
+// directo al paso correcto cuando el error solo se detecta en el backend
+// (ej. numero_sisin_web duplicado, que se valida contra la base de datos,
+// no algo que se pueda detectar mientras se llena el formulario).
+const camposPorPaso = {
+  1: ['codigo', 'numero_sisin_web', 'nombre', 'fiscal_general', 'entidad_ejecutora', 'fuente_financiamiento', 'id_decreto_supremo', 'componentes'],
+  2: ['familias_productoras', 'total_beneficiarios', 'empleos_directos_construccion', 'empleos_indirectos_construccion', 'empleos_directos_operacion', 'empleos_indirectos_operacion', 'ubicaciones'],
+  3: ['fecha_inicio_contractual', 'fecha_conclusion_inicial_contractual', 'plazo_contractual_inicial_dias', 'fecha_conclusion_actual', 'plazo_contractual_actual_dias', 'estado', 'observaciones', 'resultado_impacto_socioeconomico'],
+}
+
+function saltarAlPasoConError(errores) {
+  const camposConError = Object.keys(errores)
+
+  for (const paso of [1, 2, 3]) {
+    const tieneErrorEnEstePaso = camposPorPaso[paso].some(campo =>
+      camposConError.some(c => c === campo || c.startsWith(campo + '.'))
+    )
+    if (tieneErrorEnEstePaso) {
+      irAPaso(paso)
+      return
+    }
+  }
+}
+
 function validarPasoActual() {
   errorPaso.value = ''
   if (currentStep.value === 1) {
@@ -321,6 +345,11 @@ async function guardar() {
     if (e.response?.status === 422) {
       erroresCampo.value = e.response.data.errors || {}
       error.value = 'Revisa los campos marcados en rojo.'
+      saltarAlPasoConError(erroresCampo.value)
+
+      if (erroresCampo.value.numero_sisin_web) {
+        showToast('El número SISINWEB ya está registrado en otro proyecto.', 'error')
+      }
     } else if (e.response?.status === 401) {
       error.value = 'Tu sesión expiró. Vuelve a iniciar sesión.'
     } else {
@@ -399,6 +428,7 @@ onMounted(async () => {
               <div class="field">
                 <label>Número SISIN Web</label>
                 <input v-model="form.numero_sisin_web" type="text" placeholder="Ej. 0041-04174-00000" :disabled="guardando" />
+                <span v-if="erroresCampo.numero_sisin_web" class="field-error">{{ erroresCampo.numero_sisin_web[0] }}</span>
               </div>
 
               <div class="field span-full">

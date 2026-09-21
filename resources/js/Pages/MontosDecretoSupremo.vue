@@ -3,10 +3,13 @@ import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import axios from '@/lib/axios'
 import NuevoDecreto from './NuevoDecreto.vue'
+import EditarDecreto from './EditarDecreto.vue'
 import { useToast } from '@/composables/useToast.js'
+import { useConfirm } from '@/composables/useConfirm.js'
 
 const route = useRoute()
 const { showToast } = useToast()
+const { confirmar } = useConfirm()
 const codigoProyecto = route.params.codigo
 
 const decretos = ref([])
@@ -22,6 +25,7 @@ const resumen = ref({
 const cargando = ref(true)
 const error = ref(null)
 const mostrarModal = ref(false)
+const decretoEditando = ref(null)
 
 function fmtBs(valor) {
   return new Intl.NumberFormat('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(valor) || 0)
@@ -43,7 +47,8 @@ async function cargar() {
 }
 
 async function eliminarDecreto(idDecreto) {
-  if (!confirm('¿Eliminar este registro de Decreto Supremo?')) return
+  const ok = await confirmar({ title: '¿Eliminar este registro?', message: 'Se eliminará este registro de Decreto Supremo del proyecto. El Decreto Supremo original no se modifica.', confirmText: 'Eliminar', variant: 'danger' })
+  if (!ok) return
   try {
     await axios.delete(`/api/decretos/${idDecreto}`)
     await cargar()
@@ -128,7 +133,12 @@ onMounted(cargar)
                 <td class="money">{{ fmtBs(d.monto_puesta_marcha_insumos) }}</td>
                 <td class="money">{{ fmtBs(d.monto_auditoria_interna) }}</td>
                 <td>
-                  <button style="color:#f87171;background:none;border:none;cursor:pointer;font-size:.85rem;" @click="eliminarDecreto(d.id_decreto)" title="Eliminar registro">✕</button>
+                  <button style="color:#55b8ef;background:none;border:none;cursor:pointer;font-size:.9rem;padding:4px 6px;" @click="decretoEditando = d" title="Editar registro">
+                    <i class="ti ti-pencil"></i>
+                  </button>
+                  <button style="color:#f87171;background:none;border:none;cursor:pointer;font-size:.9rem;padding:4px 6px;" @click="eliminarDecreto(d.id_decreto)" title="Eliminar registro">
+                    <i class="ti ti-trash"></i>
+                  </button>
                 </td>
               </tr>
             </tbody>
@@ -143,6 +153,16 @@ onMounted(cargar)
       @close="mostrarModal = false"
       @created="cargar"
     />
+
+    <Transition name="modal-fade">
+      <EditarDecreto
+        v-if="decretoEditando"
+        :key="decretoEditando.id_decreto"
+        :decreto="decretoEditando"
+        @close="decretoEditando = null"
+        @updated="cargar"
+      />
+    </Transition>
   </div>
 </template>
 

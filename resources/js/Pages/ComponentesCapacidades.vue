@@ -2,11 +2,15 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import axios from '@/lib/axios'
+import { useToast } from '@/composables/useToast.js'
+import { useConfirm } from '@/composables/useConfirm.js'
 import NuevoComponente from './NuevoComponente.vue'
 
 const route = useRoute()
 const router = useRouter()
 const codigoProyecto = route.params.codigo
+const { showToast } = useToast()
+const { confirmar } = useConfirm()
 
 const proyecto = ref(null)
 const componentes = ref([])
@@ -46,13 +50,15 @@ async function cargar() {
 }
 
 async function eliminarComponente(idComponente) {
-  if (!confirm('¿Eliminar este componente y todos sus productos?')) return
+  const ok = await confirmar({ title: '¿Eliminar este componente?', message: 'Se eliminará el componente junto con todos sus productos.', confirmText: 'Eliminar', variant: 'danger' })
+  if (!ok) return
   try {
     await axios.delete(`/api/componentes/${idComponente}`)
+    showToast('Componente eliminado correctamente.', 'success')
     await cargar()
   } catch (e) {
     console.error(e)
-    alert('No se pudo eliminar el componente.')
+    showToast('No se pudo eliminar el componente.', 'error')
   }
 }
 
@@ -64,23 +70,26 @@ async function agregarProducto(idComponente) {
   try {
     await axios.post(`/api/componentes/${idComponente}/productos`, datos)
     nuevosProductos[idComponente] = formularioVacio()
+    showToast('Producto agregado correctamente.', 'success')
     await cargar()
   } catch (e) {
     console.error(e)
-    alert('No se pudo agregar el producto.')
+    showToast('No se pudo agregar el producto.', 'error')
   } finally {
     guardandoProducto[idComponente] = false
   }
 }
 
 async function eliminarProducto(idProducto) {
-  if (!confirm('¿Eliminar este producto?')) return
+  const ok = await confirmar({ title: '¿Eliminar este producto?', message: 'Esta acción quitará el producto del componente.', confirmText: 'Eliminar', variant: 'danger' })
+  if (!ok) return
   try {
     await axios.delete(`/api/productos/${idProducto}`)
+    showToast('Producto eliminado correctamente.', 'success')
     await cargar()
   } catch (e) {
     console.error(e)
-    alert('No se pudo eliminar el producto.')
+    showToast('No se pudo eliminar el producto.', 'error')
   }
 }
 

@@ -1,6 +1,7 @@
 <script setup>
 import { ref, watch } from 'vue'
 import axios from 'axios'
+import { useToast } from '@/composables/useToast.js'
 
 const props = defineProps({
     modelValue: {
@@ -23,6 +24,8 @@ const emit = defineEmits([
     'update:modelValue',
     'guardado'
 ])
+
+const { showToast } = useToast()
 
 const guardando = ref(false)
 const errorFormulario = ref(null)
@@ -131,6 +134,8 @@ async function guardarActividad() {
             payload
         )
 
+        showToast('Actividad registrada correctamente.', 'success')
+
         cerrarModal()
 
         emit('guardado')
@@ -159,6 +164,8 @@ async function guardarActividad() {
             errorFormulario.value =
                 e.response?.data?.message ??
                 'No se pudo registrar la actividad.'
+
+            showToast('No se pudo registrar la actividad.', 'error')
         }
 
     } finally {

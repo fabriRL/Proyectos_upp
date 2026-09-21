@@ -4,14 +4,17 @@ import { useRoute } from 'vue-router'
 import axios from 'axios'
 import { useUtils } from '@/composables/useUtils.js'
 import { useToast } from '@/composables/useToast.js'
+import { useConfirm } from '@/composables/useConfirm.js'
 import NuevaPartida from './NuevaPartida.vue'
 import NuevoObjetoGasto from './NuevoObjetoGasto.vue'
 import EditarObjetoGasto from './EditarObjetoGasto.vue'
+import EditarPartida from './EditarPartida.vue'
 
 const route = useRoute()
 const codigoProyecto = route.params.codigo
 const { badgeClass, fmtBs } = useUtils()
 const { showToast } = useToast()
+const { confirmar } = useConfirm()
 
 const partidas = ref([])
 const cargando = ref(true)
@@ -20,6 +23,7 @@ const error = ref(null)
 const mostrarNuevaPartida = ref(false)
 const idPartidaAgregandoObjeto = ref(null)
 const objetoEditando = ref(null)
+const partidaEditando = ref(null)
 
 const monthNames = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
 const camposMes = ['monto_ene','monto_feb','monto_mar','monto_abr','monto_may','monto_jun','monto_jul','monto_ago','monto_sep','monto_oct','monto_nov','monto_dic']
@@ -45,7 +49,8 @@ async function cargar() {
 onMounted(cargar)
 
 async function eliminarPartida(idPartida) {
-  if (!confirm('¿Eliminar esta partida y todos sus objetos de gasto?')) return
+  const ok = await confirmar({ title: '¿Eliminar esta partida?', message: 'Se eliminará la partida junto con todos sus objetos de gasto.', confirmText: 'Eliminar', variant: 'danger' })
+  if (!ok) return
   try {
     await axios.delete(`/api/partidas/${idPartida}`)
     await cargar()
@@ -57,7 +62,8 @@ async function eliminarPartida(idPartida) {
 }
 
 async function eliminarObjeto(idObjeto) {
-  if (!confirm('¿Eliminar este objeto de gasto?')) return
+  const ok = await confirmar({ title: '¿Eliminar este objeto de gasto?', message: 'Esta acción quitará el objeto de gasto de la partida.', confirmText: 'Eliminar', variant: 'danger' })
+  if (!ok) return
   try {
     await axios.delete(`/api/objetos-gasto/${idObjeto}`)
     await cargar()
@@ -166,41 +172,52 @@ const totalCumplimiento = computed(() =>
           <table class="table table-xs financial-table">
             <thead>
               <tr>
-                <th>N°</th><th>Objeto</th><th>Descripción objeto de gasto</th>
+                <th></th><th>N°</th><th>Objeto</th><th>Descripción objeto de gasto</th>
                 <th>Presupuesto aprobado SIGEP</th>
                 <th v-for="month in monthNames" :key="month">{{ month }}</th>
                 <th>Total programado</th><th>Monto ejecutado</th><th>Saldo por ejecutar</th>
                 <th>Programación acumulada</th><th>Cumplimiento financiero</th>
-                <th>Desviación</th><th>Estado financiero</th><th></th>
+                <th>Desviación</th><th>Estado financiero</th>
               </tr>
             </thead>
             <tbody>
               <template v-for="partida in partidas" :key="partida.id_partida">
                 <!-- Cabecera de grupo (equivale a la celda combinada del Excel) -->
                 <tr class="group-row">
-                  <td :colspan="4 + monthNames.length + 6" class="group-header">
-                    <span class="group-badge">Partida</span>
-                    Presupuesto aprobado: <strong>{{ money(partida.presupuesto_aprobado) }}</strong>
-                    <span class="group-sep">·</span>
-                    Saldo por ejecutar: <strong :style="{ color: partida.saldo_por_ejecutar < 0 ? '#f87171' : '#fbbf24' }">{{ money(partida.saldo_por_ejecutar) }}</strong>
-                  </td>
                   <td class="group-actions">
                     <button class="btn-icon" style="color:#00c9a7;" title="Agregar objeto de gasto" @click="idPartidaAgregandoObjeto = partida.id_partida">
                       <i class="ti ti-plus"></i>
+                    </button>
+                    <button class="btn-icon" style="color:#55b8ef;" title="Editar partida" @click="partidaEditando = partida">
+                      <i class="ti ti-pencil"></i>
                     </button>
                     <button class="btn-icon" style="color:#f87171;" title="Eliminar partida" @click="eliminarPartida(partida.id_partida)">
                       <i class="ti ti-trash"></i>
                     </button>
                   </td>
+                  <td :colspan="4 + monthNames.length + 7" class="group-header">
+                    <span class="group-badge">Partida</span>
+                    Presupuesto aprobado: <strong>{{ money(partida.presupuesto_aprobado) }}</strong>
+                    <span class="group-sep">·</span>
+                    Saldo por ejecutar: <strong :style="{ color: partida.saldo_por_ejecutar < 0 ? '#f87171' : '#fbbf24' }">{{ money(partida.saldo_por_ejecutar) }}</strong>
+                  </td>
                 </tr>
 
                 <tr v-if="!partida.objetos.length">
-                  <td :colspan="5 + monthNames.length + 6" class="text-center py-4" style="color:#647a8e;">
+                  <td :colspan="5 + monthNames.length + 7" class="text-center py-4" style="color:#647a8e;">
                     Sin objetos de gasto en esta partida.
                   </td>
                 </tr>
 
                 <tr v-for="o in partida.objetos" :key="o.id_objeto" class="item-row">
+                  <td class="row-actions">
+                    <button class="btn-icon" style="color:#55b8ef;" title="Editar" @click="objetoEditando = o">
+                      <i class="ti ti-pencil"></i>
+                    </button>
+                    <button class="btn-icon" style="color:#f87171;" title="Eliminar" @click="eliminarObjeto(o.id_objeto)">
+                      <i class="ti ti-trash"></i>
+                    </button>
+                  </td>
                   <td>{{ o.numero }}</td>
                   <td class="object">{{ o.codigo_objeto }}</td>
                   <td>{{ o.descripcion }}</td>
@@ -215,18 +232,11 @@ const totalCumplimiento = computed(() =>
                   <td class="metric">{{ fmtPct(o.cumplimiento_financiero) }}</td>
                   <td class="metric deviation">{{ fmtPct(desviacion(o)) }}</td>
                   <td><span :class="badgeClass(estadoFinanciero(o))">{{ estadoFinanciero(o) }}</span></td>
-                  <td>
-                    <button class="btn-icon" style="color:#55b8ef;" title="Editar" @click="objetoEditando = o">
-                      <i class="ti ti-pencil"></i>
-                    </button>
-                    <button class="btn-icon" style="color:#f87171;" title="Eliminar" @click="eliminarObjeto(o.id_objeto)">
-                      <i class="ti ti-trash"></i>
-                    </button>
-                  </td>
                 </tr>
               </template>
 
               <tr class="total-row">
+                <td></td>
                 <td colspan="3">TOTAL</td>
                 <td class="money">{{ money(totalPresupuesto) }}</td>
                 <td v-for="(valor, idx) in totalPorMes" :key="idx" class="money">{{ money(valor) }}</td>
@@ -236,7 +246,6 @@ const totalCumplimiento = computed(() =>
                 <td class="money">{{ money(totalAcumulado) }}</td>
                 <td class="metric">{{ fmtPct(totalCumplimiento) }}</td>
                 <td class="metric deviation">{{ fmtPct(totalCumplimiento !== null ? 1 - totalCumplimiento : null) }}</td>
-                <td></td>
                 <td></td>
               </tr>
             </tbody>
@@ -251,6 +260,16 @@ const totalCumplimiento = computed(() =>
       @close="mostrarNuevaPartida = false"
       @created="cargar"
     />
+
+    <Transition name="modal-fade">
+      <EditarPartida
+        v-if="partidaEditando"
+        :key="partidaEditando.id_partida"
+        :partida="partidaEditando"
+        @close="partidaEditando = null"
+        @updated="cargar"
+      />
+    </Transition>
 
     <NuevoObjetoGasto
       :show="!!idPartidaAgregandoObjeto"
@@ -296,7 +315,8 @@ const totalCumplimiento = computed(() =>
 .group-header strong{color:#d0dde8}
 .group-badge{display:inline-block;padding:1px 7px;margin-right:8px;border-radius:4px;background:rgba(0,201,167,.12);color:#00c9a7;font-weight:700;font-size:.6rem;text-transform:uppercase}
 .group-sep{margin:0 8px;color:#3a556b}
-.group-actions{text-align:right!important;white-space:nowrap}
+.group-actions{text-align:left!important;white-space:nowrap}
+.row-actions{white-space:nowrap}
 .btn-icon{background:none;border:none;cursor:pointer;font-size:13px;padding:4px 6px}
 @media(max-width:700px){.financial-page{padding:14px}.financial-header{align-items:flex-start;flex-direction:column}.grid{grid-template-columns:1fr!important}.matrix-title{align-items:flex-start;flex-direction:column;gap:5px}}
 </style>

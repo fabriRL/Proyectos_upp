@@ -21,6 +21,7 @@ class RolesYPermisosSeeder extends Seeder
         ['nombre' => 'reportes.gestionar', 'descripcion' => 'Generar reportes y ver/eliminar su historial'],
         ['nombre' => 'dashboard.ver', 'descripcion' => 'Ver el Dashboard global'],
         ['nombre' => 'roles.gestionar', 'descripcion' => 'Administrar roles y permisos del sistema'],
+        ['nombre' => 'decretos_supremos.gestionar', 'descripcion' => 'Gestionar el catálogo general de Decretos Supremos (listar, editar, eliminar)'],
         ['nombre' => 'auditoria.ver', 'descripcion' => 'Ver el historial de auditoría (cambios realizados por los usuarios)'],
     ];
 

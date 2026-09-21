@@ -1,81 +1,35 @@
 <script setup>
-import { reactive, ref, watch } from 'vue'
+import { reactive, ref } from 'vue'
 import axios from '@/lib/axios'
 import { useToast } from '@/composables/useToast.js'
 
 const props = defineProps({
-  show: Boolean,
-  codigoProyecto: String,
+  decreto: { type: Object, required: true },
 })
-const emit = defineEmits(['close', 'created'])
+const emit = defineEmits(['close', 'updated'])
 const { showToast } = useToast()
 
 const form = reactive({
-  numero_decreto: '',
-  monto_inicial: null,
-  incremento: 0,
-  monto_puesta_marcha_insumos: 0,
-  monto_auditoria_interna: 0,
+  incremento: Number(props.decreto.incremento) || 0,
+  monto_puesta_marcha_insumos: Number(props.decreto.monto_puesta_marcha_insumos) || 0,
+  monto_auditoria_interna: Number(props.decreto.monto_auditoria_interna) || 0,
 })
-
 const errors = ref({})
 const enviando = ref(false)
-const cargandoProyecto = ref(false)
-
-function resetForm() {
-  Object.assign(form, {
-    numero_decreto: '',
-    monto_inicial: null,
-    incremento: 0,
-    monto_puesta_marcha_insumos: 0,
-    monto_auditoria_interna: 0,
-  })
-  errors.value = {}
-}
-
-// Al abrir el modal, trae el número de decreto ("norma_financiador")
-// y el monto inicial ("monto_decreto") ya guardados en el proyecto.
-// Ambos quedan bloqueados en el formulario — si hay que cambiarlos,
-// se cambian editando el proyecto, no desde aquí, para que los dos
-// lugares nunca queden desincronizados.
-async function precargarDatosProyecto() {
-  if (!props.codigoProyecto) return
-
-  cargandoProyecto.value = true
-  try {
-    const { data } = await axios.get(`/api/proyectos/${props.codigoProyecto}`)
-    form.numero_decreto = data?.norma_financiador ?? ''
-    form.monto_inicial = data?.monto_decreto !== null && data?.monto_decreto !== undefined
-      ? Number(data.monto_decreto)
-      : null
-  } catch (e) {
-    console.error('No se pudieron precargar los datos del proyecto:', e)
-  } finally {
-    cargandoProyecto.value = false
-  }
-}
-
-watch(
-  () => props.show,
-  (visible) => {
-    if (visible) precargarDatosProyecto()
-  }
-)
 
 async function guardar() {
   enviando.value = true
   errors.value = {}
   try {
-    await axios.post(`/api/proyectos/${props.codigoProyecto}/decretos`, form)
-    showToast('Registro de Decreto Supremo agregado correctamente.', 'success')
-    resetForm()
-    emit('created')
+    await axios.put(`/api/decretos/${props.decreto.id_decreto}`, form)
+    showToast('Registro de Decreto Supremo actualizado correctamente.', 'success')
+    emit('updated')
     emit('close')
   } catch (e) {
     if (e.response?.status === 422) errors.value = e.response.data.errors
     else {
       console.error(e)
-      showToast('No se pudo agregar el registro.', 'error')
+      showToast('No se pudo actualizar el registro.', 'error')
     }
   } finally {
     enviando.value = false
@@ -83,7 +37,6 @@ async function guardar() {
 }
 
 function cerrar() {
-  resetForm()
   emit('close')
 }
 
@@ -103,10 +56,9 @@ const sBtnSave = { padding: '9px 18px', borderRadius: '6px', border: 'none', bac
 
 <template>
   <Teleport to="body">
-    <Transition name="modal-fade">
-    <div v-if="show" :style="sOverlay" @click.self="cerrar">
+    <div :style="sOverlay" @click.self="cerrar">
       <div :style="sBox">
-        <h2 style="margin:0 0 4px;font-size:1.1rem;">Nuevo Decreto Supremo</h2>
+        <h2 style="margin:0 0 4px;font-size:1.1rem;">Editar Decreto Supremo</h2>
         <p style="margin:0 0 8px;font-size:0.72rem;color:#8ea9bf;">
           Registro de financiamiento del proyecto.
         </p>
@@ -116,52 +68,41 @@ const sBtnSave = { padding: '9px 18px', borderRadius: '6px', border: 'none', bac
             Número de Decreto Supremo
             <span :style="sTagLocked">Del proyecto</span>
           </label>
-          <input
-            :value="cargandoProyecto ? 'Cargando...' : form.numero_decreto"
-            type="text"
-            :style="sInputLocked"
-            disabled
-          />
-          <span :style="sError" v-if="errors.numero_decreto">{{ errors.numero_decreto[0] }}</span>
-          <div :style="sHint">Viene del campo "Norma financiador" del proyecto. Para cambiarlo, edita el proyecto.</div>
+          <input :value="decreto.numero_decreto" type="text" :style="sInputLocked" disabled />
+          <div :style="sHint">El Decreto Supremo original no se modifica desde aquí.</div>
 
           <label :style="sLabel">
             Monto inicial del D.S. (Bs)
             <span :style="sTagLocked">Del proyecto</span>
           </label>
-          <input
-            :value="cargandoProyecto ? 'Cargando...' : (form.monto_inicial !== null ? form.monto_inicial : '—')"
-            type="text"
-            :style="sInputLocked"
-            disabled
-          />
-          <span :style="sError" v-if="errors.monto_inicial">{{ errors.monto_inicial[0] }}</span>
-          <div :style="sHint">Viene del campo "Monto del decreto" del proyecto. Para cambiarlo, edita el proyecto.</div>
+          <input :value="decreto.monto_inicial" type="text" :style="sInputLocked" disabled />
 
           <label :style="sLabel">Incremento al D.S. (Bs)</label>
           <input v-model.number="form.incremento" type="number" step="0.01" min="0" :style="sInput" />
+          <span :style="sError" v-if="errors.incremento">{{ errors.incremento[0] }}</span>
           <div :style="sHint">Solo si hubo ampliación presupuestaria. El monto vigente se calcula solo.</div>
 
           <div :style="sRow">
             <div>
               <label :style="sLabel">Puesta en marcha / Insumos (Bs)</label>
               <input v-model.number="form.monto_puesta_marcha_insumos" type="number" step="0.01" min="0" :style="sInput" />
+              <span :style="sError" v-if="errors.monto_puesta_marcha_insumos">{{ errors.monto_puesta_marcha_insumos[0] }}</span>
             </div>
             <div>
               <label :style="sLabel">Auditoría interna (Bs)</label>
               <input v-model.number="form.monto_auditoria_interna" type="number" step="0.01" min="0" :style="sInput" />
+              <span :style="sError" v-if="errors.monto_auditoria_interna">{{ errors.monto_auditoria_interna[0] }}</span>
             </div>
           </div>
 
           <div :style="sActions">
             <button type="button" :style="sBtnCancel" @click="cerrar">Cancelar</button>
-            <button type="submit" :style="sBtnSave" :disabled="enviando || cargandoProyecto || form.monto_inicial === null">
-              {{ enviando ? 'Guardando...' : 'Guardar' }}
+            <button type="submit" :style="sBtnSave" :disabled="enviando">
+              {{ enviando ? 'Guardando...' : 'Guardar cambios' }}
             </button>
           </div>
         </form>
       </div>
     </div>
-    </Transition>
   </Teleport>
 </template>

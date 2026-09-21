@@ -2,13 +2,18 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import axios from '@/lib/axios'
+import { useConfirm } from '@/composables/useConfirm.js'
+import { useToast } from '@/composables/useToast.js'
 
 const router = useRouter()
+const { confirmar } = useConfirm()
+const { showToast } = useToast()
 
 const proyectos = ref([])
 const cargando = ref(true)
 const error = ref(null)
 const busqueda = ref('')
+const eliminandoCodigo = ref(null)
 
 /*
 |--------------------------------------------------------------------------
@@ -186,6 +191,47 @@ function editarProyecto(codigo) {
       codigo: codigo
     }
   })
+}
+
+/*
+|--------------------------------------------------------------------------
+| ELIMINAR PROYECTO
+|--------------------------------------------------------------------------
+*/
+
+async function eliminarProyecto(proyecto) {
+  if (!proyecto?.codigo) {
+    console.error('El proyecto no tiene código.')
+    return
+  }
+
+  const ok = await confirmar({
+    title: '¿Eliminar este proyecto?',
+    message: `Se eliminará "${proyecto.nombre || proyecto.codigo}" (${proyecto.codigo}) junto con sus contratos, planillas, cronograma y demás datos asociados. Esta acción se puede revertir solo desde la base de datos.`,
+    confirmText: 'Eliminar',
+    cancelText: 'Cancelar',
+    variant: 'danger',
+  })
+
+  if (!ok) return
+
+  eliminandoCodigo.value = proyecto.codigo
+
+  try {
+    await axios.delete(`/api/proyectos/${proyecto.codigo}`)
+
+    proyectos.value = proyectos.value.filter(p => p.codigo !== proyecto.codigo)
+
+    showToast('Proyecto eliminado correctamente.', 'success')
+  } catch (e) {
+    console.error('Error eliminando proyecto:', e)
+    showToast(
+      e.response?.data?.message || 'No se pudo eliminar el proyecto.',
+      'error'
+    )
+  } finally {
+    eliminandoCodigo.value = null
+  }
 }
 
 /*
@@ -583,6 +629,24 @@ onMounted(() => {
                 >
 
                   <i class="ti ti-pencil"></i>
+
+                </button>
+
+
+                <!-- ELIMINAR -->
+
+                <button
+                  type="button"
+                  class="btn-icon btn-icon-danger"
+                  title="Eliminar proyecto"
+                  :disabled="eliminandoCodigo === p.codigo"
+                  @click="eliminarProyecto(p)"
+                >
+
+                  <i
+                    class="ti"
+                    :class="eliminandoCodigo === p.codigo ? 'ti-loader-2 spinner' : 'ti-trash'"
+                  ></i>
 
                 </button>
 
@@ -1146,6 +1210,14 @@ onMounted(() => {
   opacity: .5;
 
   cursor: not-allowed;
+}
+
+.btn-icon-danger:hover:not(:disabled) {
+  border-color: #f87171;
+
+  color: #f87171;
+
+  background: rgba(248, 113, 113, .08);
 }
 
 

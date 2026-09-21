@@ -108,6 +108,10 @@ Route::middleware('auth:sanctum')->group(function () {
     //DECRETOS SUPREMOS
     Route::get('/decretos-supremos', [CatalogoDecretoSupremoController::class, 'index']);
     Route::post('/decretos-supremos', [CatalogoDecretoSupremoController::class, 'store']);
+    Route::middleware('permiso:decretos_supremos.gestionar')->group(function () {
+        Route::put('/decretos-supremos/{decreto}', [CatalogoDecretoSupremoController::class, 'update']);
+        Route::delete('/decretos-supremos/{decreto}', [CatalogoDecretoSupremoController::class, 'destroy']);
+    });
     //PROGRAMACION FINANCIERA 
     Route::get('/proyectos/{proyecto:codigo}/programacion-financiera', [ProgramacionFinancieraController::class, 'index']);
     Route::post('/proyectos/{proyecto:codigo}/partidas', [ProgramacionFinancieraController::class, 'storePartida']);

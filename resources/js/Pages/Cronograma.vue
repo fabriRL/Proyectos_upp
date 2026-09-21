@@ -197,6 +197,11 @@ async function guardarActividad() {
       await axios.post(`/api/proyectos/${identificador.value}/actividades`, payload)
     }
 
+    showToast(
+      modoEdicion.value ? 'Actividad actualizada correctamente.' : 'Actividad registrada correctamente.',
+      'success'
+    )
+
     cerrarModal()
     await cargarActividades()
   } catch (e) {
@@ -210,6 +215,8 @@ async function guardarActividad() {
     } else {
       errorFormulario.value = e.response?.data?.message ??
         (modoEdicion.value ? 'No se pudo actualizar la actividad.' : 'No se pudo registrar la actividad.')
+
+      showToast(errorFormulario.value, 'error')
     }
   } finally {
     guardando.value = false

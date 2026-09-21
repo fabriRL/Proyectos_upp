@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import axios from 'axios'
+import { useToast } from '@/composables/useToast.js'
 
 const props = defineProps({
     proyecto: {
@@ -19,6 +20,8 @@ const emit = defineEmits([
 | Estado
 |--------------------------------------------------------------------------
 */
+
+const { showToast } = useToast()
 
 const loading = ref(false)
 const loadingDatos = ref(true)
@@ -321,6 +324,8 @@ async function guardar() {
 
         emit('creada', response.data)
 
+        showToast('Actividad registrada correctamente.', 'success')
+
 
         /*
         |--------------------------------------------------------------------------
@@ -358,6 +363,8 @@ async function guardar() {
 
             error.value =
                 'No se pudo registrar la actividad.'
+
+            showToast('No se pudo registrar la actividad.', 'error')
 
         }
 

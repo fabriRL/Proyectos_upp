@@ -1,12 +1,14 @@
 <script setup>
 import { reactive, ref } from 'vue'
 import axios from '@/lib/axios'
+import { useToast } from '@/composables/useToast.js'
 
 const props = defineProps({
   show: Boolean,
   codigoProyecto: String,
 })
 const emit = defineEmits(['close', 'created'])
+const { showToast } = useToast()
 
 const form = reactive({ nombre: '', descripcion: '' })
 const errors = ref({})
@@ -22,12 +24,16 @@ async function guardar() {
   errors.value = {}
   try {
     await axios.post(`/api/proyectos/${props.codigoProyecto}/componentes`, form)
+    showToast('Componente agregado correctamente.', 'success')
     resetForm()
     emit('created')
     emit('close')
   } catch (e) {
     if (e.response?.status === 422) errors.value = e.response.data.errors
-    else console.error(e)
+    else {
+      console.error(e)
+      showToast('No se pudo agregar el componente.', 'error')
+    }
   } finally {
     enviando.value = false
   }

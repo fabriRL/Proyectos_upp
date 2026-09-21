@@ -9,7 +9,7 @@
   const isDark = ref(true)
   defineEmits(['toggle-menu'])
 
-  const titles = { indicadores: 'Resumen de indicadores del proyecto', 'nuevo-proyecto': 'Registro de nuevo proyecto', flujo: 'Flujo del sistema', dashboard: 'Dashboard de seguimiento', proyectos: 'Proyectos de inversión', datos: 'Datos generales del proyecto', cronograma: 'Cronograma de actividades', contratos: 'Contratos y paquetes', planillas: 'Planillas de pago — Paquete I', problemas: 'Problemas y soluciones', financiero: 'Programación financiera', reporte: 'Generar reporte V5', perfil: 'Mi perfil', auditoria: 'Auditoría del sistema', 'reporte-proyecto': 'Reporte del proyecto' }
+  const titles = { indicadores: 'Resumen de indicadores del proyecto', 'nuevo-proyecto': 'Registro de nuevo proyecto', flujo: 'Flujo del sistema', dashboard: 'Dashboard de seguimiento', proyectos: 'Proyectos de inversión', datos: 'Datos generales del proyecto', cronograma: 'Cronograma de actividades', contratos: 'Contratos y paquetes', planillas: 'Planillas de pago — Paquete I', problemas: 'Problemas y soluciones', financiero: 'Programación financiera', reporte: 'Generar reporte V5', perfil: 'Mi perfil', auditoria: 'Auditoría del sistema', 'decretos-supremos': 'Decretos Supremos (catálogo general)', 'reporte-proyecto': 'Reporte del proyecto' }
   const currentTitle = computed(() => titles[route.name] || '')
 
   // Iniciales del usuario logueado: usa las que venga del backend si existen,

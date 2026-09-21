@@ -1,6 +1,7 @@
 <script setup>
 import { reactive, ref, computed } from 'vue'
 import axios from 'axios'
+import { useToast } from '@/composables/useToast.js'
 
 const props = defineProps({
   show: Boolean,
@@ -8,6 +9,7 @@ const props = defineProps({
   contratosExistentes: { type: Array, default: () => [] },
 })
 const emit = defineEmits(['close', 'created'])
+const { showToast } = useToast()
 
 const form = reactive({
   tipo_contrato: 'Obra',
@@ -176,6 +178,7 @@ async function guardar() {
     await axios.post(`/api/proyectos/${props.codigoProyecto}/contratos`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     })
+    showToast('Contrato registrado correctamente.', 'success')
     resetForm()
     emit('created')
     emit('close')
